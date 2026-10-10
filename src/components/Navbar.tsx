@@ -1,18 +1,57 @@
 import React from 'react';
 import { useHospital } from '../context/HospitalContext';
 import { UserRole } from '../types/hospital';
-import { Activity, Shield, Stethoscope, Users, Cpu, FileText, ChevronDown } from 'lucide-react';
+import { 
+  Activity, 
+  Shield, 
+  Stethoscope, 
+  Users, 
+  Cpu, 
+  FileText, 
+  ChevronDown,
+  Bot,
+  Radio,
+  LogIn,
+  LogOut,
+  CheckCircle2
+} from 'lucide-react';
 import { formatAddress } from '../utils/crypto';
 
 interface NavbarProps {
-  activeTab: 'patient' | 'doctor' | 'epidemiology' | 'ledger' | 'thesis';
-  setActiveTab: (tab: 'patient' | 'doctor' | 'epidemiology' | 'ledger' | 'thesis') => void;
+  activeTab: 'patient' | 'doctor' | 'epidemiology' | 'ledger' | 'chatbot' | 'voice' | 'thesis';
+  setActiveTab: (tab: 'patient' | 'doctor' | 'epidemiology' | 'ledger' | 'chatbot' | 'voice' | 'thesis') => void;
   openThesisModal: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab, openThesisModal }) => {
-  const { currentUser, availableUsers, switchUser, isMining } = useHospital();
+  const { 
+    currentUser, 
+    availableUsers, 
+    switchUser, 
+    isMining,
+    firebaseUser,
+    signInWithGoogle,
+    signOutFirebase,
+    isFirebaseConnected
+  } = useHospital();
+  
   const [userDropdownOpen, setUserDropdownOpen] = React.useState(false);
+  const [authLoading, setAuthLoading] = React.useState(false);
+
+  const handleGoogleAuth = async () => {
+    setAuthLoading(true);
+    try {
+      if (firebaseUser) {
+        await signOutFirebase();
+      } else {
+        await signInWithGoogle();
+      }
+    } catch (err) {
+      console.error('Google Auth Failed:', err);
+    } finally {
+      setAuthLoading(false);
+    }
+  };
 
   return (
     <header className="sticky top-0 z-40 w-full border-b border-slate-800 bg-slate-950/90 backdrop-blur-md">
@@ -33,7 +72,7 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab, openThe
         </div>
 
         {/* Zone 2: Navigation links */}
-        <nav className="hidden md:flex items-center gap-6 text-sm font-medium text-slate-300">
+        <nav className="hidden lg:flex items-center gap-5 text-sm font-medium text-slate-300">
           <button
             onClick={() => setActiveTab('patient')}
             className={`whitespace-nowrap shrink-0 pb-1 border-b-2 transition-colors ${
@@ -68,6 +107,30 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab, openThe
           </button>
 
           <button
+            onClick={() => setActiveTab('chatbot')}
+            className={`whitespace-nowrap shrink-0 pb-1 border-b-2 transition-colors flex items-center gap-1.5 ${
+              activeTab === 'chatbot'
+                ? 'border-teal-400 text-teal-300 font-semibold'
+                : 'border-transparent hover:text-white hover:border-slate-700'
+            }`}
+          >
+            <Bot className="h-3.5 w-3.5 text-teal-400" />
+            <span>Gemini Chatbot</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('voice')}
+            className={`whitespace-nowrap shrink-0 pb-1 border-b-2 transition-colors flex items-center gap-1.5 ${
+              activeTab === 'voice'
+                ? 'border-teal-400 text-teal-300 font-semibold'
+                : 'border-transparent hover:text-white hover:border-slate-700'
+            }`}
+          >
+            <Radio className="h-3.5 w-3.5 text-teal-400" />
+            <span>Live Voice</span>
+          </button>
+
+          <button
             onClick={() => setActiveTab('ledger')}
             className={`whitespace-nowrap shrink-0 pb-1 border-b-2 transition-colors ${
               activeTab === 'ledger'
@@ -86,8 +149,34 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab, openThe
           </button>
         </nav>
 
-        {/* Zone 3: Active User / Wallet Profile Dropdown */}
-        <div className="relative flex items-center gap-3 shrink-0">
+        {/* Zone 3: Firebase Google Auth & User Profile */}
+        <div className="relative flex items-center gap-2.5 shrink-0">
+          {/* Firebase Google Auth Button */}
+          <button
+            onClick={handleGoogleAuth}
+            disabled={authLoading}
+            className={`flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors ${
+              firebaseUser
+                ? 'border-teal-500/40 bg-teal-950/60 text-teal-200 hover:bg-teal-900/60'
+                : 'border-slate-700 bg-slate-900 text-slate-200 hover:bg-slate-800 hover:border-slate-600'
+            }`}
+            title={firebaseUser ? `Signed in as ${firebaseUser.email}. Click to sign out.` : 'Sign in with Google via Firebase Auth'}
+          >
+            {firebaseUser ? (
+              <>
+                <CheckCircle2 className="h-3.5 w-3.5 text-teal-400" />
+                <span className="hidden sm:inline font-mono truncate max-w-[100px]">{firebaseUser.email?.split('@')[0]}</span>
+                <span className="sm:hidden">Google</span>
+                <LogOut className="h-3 w-3 text-slate-400 ml-0.5" />
+              </>
+            ) : (
+              <>
+                <LogIn className="h-3.5 w-3.5 text-slate-400" />
+                <span>Google Sign In</span>
+              </>
+            )}
+          </button>
+
           {isMining && (
             <div className="hidden sm:flex items-center gap-1.5 text-xs font-mono text-teal-400 bg-teal-950/60 border border-teal-800/60 px-2.5 py-1 rounded">
               <span className="h-1.5 w-1.5 rounded-full bg-teal-400 animate-ping"></span>
@@ -95,19 +184,16 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab, openThe
             </div>
           )}
 
+          {/* Persona / Role Switcher Dropdown */}
           <div className="relative">
             <button
               onClick={() => setUserDropdownOpen(!userDropdownOpen)}
-              className="flex items-center gap-2.5 rounded-lg border border-slate-800 bg-slate-900/90 px-3 py-1.5 text-xs text-slate-200 hover:border-slate-700 hover:bg-slate-800 transition-colors"
+              className="flex items-center gap-2 rounded-lg border border-slate-800 bg-slate-900/90 px-2.5 py-1.5 text-xs text-slate-200 hover:border-slate-700 hover:bg-slate-800 transition-colors"
             >
               <div className="flex h-5 w-5 items-center justify-center rounded-full bg-slate-800 text-teal-400 text-[10px] font-bold border border-slate-700">
                 {currentUser.name.charAt(0)}
               </div>
-              <div className="text-left hidden sm:block">
-                <div className="font-medium text-slate-200 leading-tight truncate max-w-[120px]">{currentUser.name}</div>
-                <div className="font-mono text-[10px] text-slate-400 leading-none">{formatAddress(currentUser.walletAddress)}</div>
-              </div>
-              <span className="text-[10px] uppercase font-semibold text-teal-400/90 bg-teal-950/80 px-1.5 py-0.5 rounded border border-teal-900/50">
+              <span className="text-[10px] uppercase font-semibold text-teal-400/90 bg-teal-950/80 px-1.5 py-0.5 rounded border border-teal-900/50 hidden sm:inline">
                 {currentUser.role}
               </span>
               <ChevronDown className="h-3.5 w-3.5 text-slate-400" />
@@ -141,7 +227,6 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab, openThe
                       <div className="truncate pr-2">
                         <div className="font-medium text-white truncate">{user.name}</div>
                         <div className="font-mono text-[10px] text-slate-400">{formatAddress(user.walletAddress)}</div>
-                        <div className="text-[10px] text-slate-400 truncate">{user.specialty || user.jurisdiction}</div>
                       </div>
                       <span className="text-[10px] font-semibold uppercase text-slate-400 bg-slate-800 px-1.5 py-0.5 rounded">
                         {user.role}
@@ -169,7 +254,7 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab, openThe
       </div>
 
       {/* Mobile nav links */}
-      <div className="flex md:hidden overflow-x-auto border-t border-slate-800/80 px-4 py-2 gap-4 text-xs">
+      <div className="flex lg:hidden overflow-x-auto border-t border-slate-800/80 px-4 py-2 gap-4 text-xs">
         <button
           onClick={() => setActiveTab('patient')}
           className={`whitespace-nowrap ${activeTab === 'patient' ? 'text-teal-400 font-bold' : 'text-slate-400'}`}
@@ -187,6 +272,20 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab, openThe
           className={`whitespace-nowrap ${activeTab === 'epidemiology' ? 'text-teal-400 font-bold' : 'text-slate-400'}`}
         >
           Surveillance
+        </button>
+        <button
+          onClick={() => setActiveTab('chatbot')}
+          className={`whitespace-nowrap flex items-center gap-1 ${activeTab === 'chatbot' ? 'text-teal-400 font-bold' : 'text-slate-400'}`}
+        >
+          <Bot className="h-3 w-3" />
+          <span>Chatbot</span>
+        </button>
+        <button
+          onClick={() => setActiveTab('voice')}
+          className={`whitespace-nowrap flex items-center gap-1 ${activeTab === 'voice' ? 'text-teal-400 font-bold' : 'text-slate-400'}`}
+        >
+          <Radio className="h-3 w-3" />
+          <span>Live Voice</span>
         </button>
         <button
           onClick={() => setActiveTab('ledger')}

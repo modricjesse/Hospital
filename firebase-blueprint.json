@@ -1,0 +1,66 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "Authenticated user profile in the blockchain hospital",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "description": "Firebase Auth UID" },
+        "email": { "type": "string", "description": "User email address" },
+        "displayName": { "type": "string", "description": "Full name of the user" },
+        "role": { "type": "string", "enum": ["Patient", "Doctor", "HealthOfficer", "Admin"], "description": "Assigned hospital role" },
+        "walletAddress": { "type": "string", "description": "Ethereum wallet address" },
+        "createdAt": { "type": "string", "description": "ISO timestamp" }
+      },
+      "required": ["uid", "email", "role"]
+    },
+    "Intake": {
+      "title": "Intake",
+      "description": "Communicable disease symptom intake and triage submission",
+      "type": "object",
+      "properties": {
+        "patientId": { "type": "string", "description": "UID of the submitting patient" },
+        "patientName": { "type": "string", "description": "Name of the patient" },
+        "patientAddress": { "type": "string", "description": "Wallet address" },
+        "category": { "type": "string", "description": "Communicable disease category" },
+        "temperature": { "type": "number", "description": "Body temperature in Celsius" },
+        "onsetDate": { "type": "string", "description": "Symptom onset date" },
+        "visibleSigns": { "type": "array", "description": "List of visible symptoms" },
+        "exposureDays": { "type": "number", "description": "Days since potential exposure" },
+        "clinicalNotes": { "type": "string", "description": "Encrypted notes" },
+        "ipfsHash": { "type": "string", "description": "SHA-256 IPFS CID" },
+        "severity": { "type": "string", "enum": ["Low", "Moderate", "High", "Critical"], "description": "Triage priority" },
+        "status": { "type": "string", "enum": ["Pending_Triage", "In_Consultation", "Diagnosed", "Discharged"], "description": "Clinical lifecycle status" },
+        "createdAt": { "type": "string", "description": "ISO timestamp" }
+      },
+      "required": ["patientId", "category", "temperature", "ipfsHash", "severity", "status"]
+    },
+    "ChatMessage": {
+      "title": "ChatMessage",
+      "description": "Multi-turn Gemini chat message history",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "UID of the user chatting" },
+        "role": { "type": "string", "enum": ["user", "model"], "description": "Sender role" },
+        "content": { "type": "string", "description": "Chat message text" },
+        "modelUsed": { "type": "string", "description": "Gemini model version" },
+        "timestamp": { "type": "number", "description": "Unix millisecond timestamp" }
+      },
+      "required": ["userId", "role", "content", "timestamp"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/User" },
+      "description": "User profiles indexed by Firebase Auth UID"
+    },
+    "/intakes/{intakeId}": {
+      "schema": { "$ref": "#/entities/Intake" },
+      "description": "Triage intakes and communicable clinical records"
+    },
+    "/chats/{chatId}": {
+      "schema": { "$ref": "#/entities/ChatMessage" },
+      "description": "Multi-turn conversation history for AI assistants"
+    }
+  }
+}

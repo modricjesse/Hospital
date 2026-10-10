@@ -16,6 +16,7 @@ import {
   UserCheck
 } from 'lucide-react';
 import { formatAddress, formatTxHash } from '../utils/crypto';
+import { AudioTranscriber } from './AudioTranscriber';
 
 interface DoctorPortalProps {
   onLaunchCall: (consultId: string) => void;
@@ -390,9 +391,17 @@ export const DoctorPortal: React.FC<DoctorPortalProps> = ({ onLaunchCall }) => {
 
               {/* Clinical Notes */}
               <div>
-                <label className="block text-slate-300 font-medium mb-1.5">
-                  Off-Chain Examination Findings (Encrypted)
-                </label>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="block text-slate-300 font-medium">
+                    Off-Chain Examination Findings (Encrypted)
+                  </label>
+                  <AudioTranscriber
+                    onTranscriptionComplete={text =>
+                      setClinicalNotes(prev => (prev ? `${prev} ${text}` : text))
+                    }
+                    buttonLabel="Dictate Findings (gemini-3.5-transcribe)"
+                  />
+                </div>
                 <textarea
                   rows={3}
                   value={clinicalNotes}

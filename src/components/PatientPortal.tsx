@@ -17,6 +17,7 @@ import {
   Lock
 } from 'lucide-react';
 import { formatAddress, formatTxHash, generateSvgQrMatrix } from '../utils/crypto';
+import { AudioTranscriber } from './AudioTranscriber';
 
 export const PatientPortal: React.FC<{ onLaunchCall: (consultId: string) => void }> = ({ onLaunchCall }) => {
   const { 
@@ -350,9 +351,17 @@ export const PatientPortal: React.FC<{ onLaunchCall: (consultId: string) => void
 
               {/* Clinical Description */}
               <div>
-                <label className="block text-xs font-medium text-slate-300 mb-2">
-                  7. Description of Current Symptoms & Location
-                </label>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="block text-xs font-medium text-slate-300">
+                    7. Description of Current Symptoms & Location
+                  </label>
+                  <AudioTranscriber
+                    onTranscriptionComplete={text =>
+                      setClinicalNotes(prev => (prev ? `${prev} ${text}` : text))
+                    }
+                    buttonLabel="Dictate Symptoms (gemini-3.5-transcribe)"
+                  />
+                </div>
                 <textarea
                   rows={3}
                   value={clinicalNotes}

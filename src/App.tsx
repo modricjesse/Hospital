@@ -5,6 +5,8 @@ import { PatientPortal } from './components/PatientPortal';
 import { DoctorPortal } from './components/DoctorPortal';
 import { EpidemiologyDashboard } from './components/EpidemiologyDashboard';
 import { LedgerExplorer } from './components/LedgerExplorer';
+import { GeminiChatbot } from './components/GeminiChatbot';
+import { LiveVoiceConversation } from './components/LiveVoiceConversation';
 import { WebRtcConsultationModal } from './components/WebRtcConsultationModal';
 import { AcademicReportModal } from './components/AcademicReportModal';
 import { 
@@ -14,15 +16,17 @@ import {
   Cpu, 
   GraduationCap, 
   ArrowRight,
-  UserCheck
+  UserCheck,
+  Bot,
+  Radio
 } from 'lucide-react';
 
 const AppContent: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'patient' | 'doctor' | 'epidemiology' | 'ledger' | 'thesis'>('patient');
+  const [activeTab, setActiveTab] = useState<'patient' | 'doctor' | 'epidemiology' | 'ledger' | 'chatbot' | 'voice' | 'thesis'>('patient');
   const [isThesisModalOpen, setIsThesisModalOpen] = useState<boolean>(false);
   const [isCallModalOpen, setIsCallModalOpen] = useState<boolean>(false);
 
-  const { currentUser, switchRole, startVideoCall, closeVideoCall } = useHospital();
+  const { currentUser, switchRole, startVideoCall, closeVideoCall, firebaseUser } = useHospital();
 
   const handleLaunchCall = (consultId: string) => {
     startVideoCall(consultId);
@@ -108,6 +112,32 @@ const AppContent: React.FC = () => {
             >
               Admin (Muodili Jesse)
             </button>
+
+            <span className="text-slate-700 mx-1">|</span>
+
+            <button
+              onClick={() => setActiveTab('chatbot')}
+              className={`px-2.5 py-1 rounded text-[11px] font-medium transition-colors flex items-center gap-1 ${
+                activeTab === 'chatbot'
+                  ? 'bg-teal-500/20 text-teal-300 border border-teal-500/40 font-semibold'
+                  : 'bg-slate-900 text-teal-400/90 hover:text-teal-300 border border-slate-800'
+              }`}
+            >
+              <Bot className="h-3 w-3" />
+              <span>AI Chatbot</span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('voice')}
+              className={`px-2.5 py-1 rounded text-[11px] font-medium transition-colors flex items-center gap-1 ${
+                activeTab === 'voice'
+                  ? 'bg-teal-500/20 text-teal-300 border border-teal-500/40 font-semibold'
+                  : 'bg-slate-900 text-teal-400/90 hover:text-teal-300 border border-slate-800'
+              }`}
+            >
+              <Radio className="h-3 w-3" />
+              <span>Live Voice</span>
+            </button>
           </div>
         </div>
       </div>
@@ -117,6 +147,8 @@ const AppContent: React.FC = () => {
         {activeTab === 'patient' && <PatientPortal onLaunchCall={handleLaunchCall} />}
         {activeTab === 'doctor' && <DoctorPortal onLaunchCall={handleLaunchCall} />}
         {activeTab === 'epidemiology' && <EpidemiologyDashboard />}
+        {activeTab === 'chatbot' && <GeminiChatbot />}
+        {activeTab === 'voice' && <LiveVoiceConversation />}
         {activeTab === 'ledger' && <LedgerExplorer />}
       </main>
 
@@ -129,6 +161,12 @@ const AppContent: React.FC = () => {
             <span>University of Nigeria, Nsukka (UNN)</span>
             <span>·</span>
             <span className="font-mono">Reg: 2021/249152</span>
+            {firebaseUser && (
+              <>
+                <span>·</span>
+                <span className="text-teal-400 font-mono">Firebase Auth: {firebaseUser.email}</span>
+              </>
+            )}
           </div>
 
           <div className="flex items-center gap-4 text-slate-400">

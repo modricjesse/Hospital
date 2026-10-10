@@ -13,12 +13,40 @@ import {
   TriageSeverity,
 } from '../types/hospital';
 import { computeSha256, computeMerkleRoot, syncComputePseudoHash } from '../utils/crypto';
+import { 
+  auth, 
+  db, 
+  googleProvider, 
+  testFirestoreConnection, 
+  handleFirestoreError, 
+  OperationType 
+} from '../firebase';
+import { 
+  signInWithPopup, 
+  signOut as fbSignOut, 
+  onAuthStateChanged, 
+  User as FirebaseUser 
+} from 'firebase/auth';
+import { 
+  collection, 
+  doc, 
+  setDoc, 
+  getDoc, 
+  addDoc, 
+  getDocs 
+} from 'firebase/firestore';
 
 interface HospitalContextType {
   currentUser: UserProfile;
   availableUsers: UserProfile[];
   switchUser: (user: UserProfile) => void;
   switchRole: (role: UserRole) => void;
+
+  // Firebase Auth & State
+  firebaseUser: FirebaseUser | null;
+  signInWithGoogle: () => Promise<void>;
+  signOutFirebase: () => Promise<void>;
+  isFirebaseConnected: boolean;
   
   // Patient & Clinical Workflows
   intakes: SymptomIntake[];
@@ -155,11 +183,77 @@ const HospitalContext = createContext<HospitalContextType | undefined>(undefined
 
 export const HospitalProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [currentUser, setCurrentUser] = useState<UserProfile>(DEFAULT_USERS[0]);
-  const [availableUsers] = useState<UserProfile[]>(DEFAULT_USERS);
+  const [availableUsers, setAvailableUsers] = useState<UserProfile[]>(DEFAULT_USERS);
   const [isMining, setIsMining] = useState<boolean>(false);
   const [activeSession, setActiveSession] = useState<ConsultationSession | null>(null);
   const [originalNotesStore, setOriginalNotesStore] = useState<Record<string, string>>({});
   const [tamperedIntakeIds, setTamperedIntakeIds] = useState<Set<string>>(new Set());
+
+  // Firebase State
+  const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(null);
+  const [isFirebaseConnected, setIsFirebaseConnected] = useState<boolean>(false);
+
+  // Initialize Firebase connection and auth listener
+  useEffect(() => {
+    testFirestoreConnection().then(connected => {
+      setIsFirebaseConnected(connected);
+    });
+
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      setFirebaseUser(user);
+      if (user) {
+        const userProfile: UserProfile = {
+          id: user.uid,
+          name: user.displayName || 'Google User',
+          email: user.email || undefined,
+          role: user.email === 'modricjesse@gmail.com' ? 'Admin' : 'Patient',
+          walletAddress: '0x' + user.uid.replace(/[^a-fA-F0-9]/g, '').padEnd(40, '0').slice(0, 40),
+          jurisdiction: 'Enugu Health District (Firebase Verified)',
+        };
+
+        setCurrentUser(userProfile);
+        setAvailableUsers(prev => {
+          const exists = prev.some(u => u.id === user.uid);
+          return exists ? prev : [userProfile, ...prev];
+        });
+
+        // Persist profile to Firestore
+        try {
+          await setDoc(doc(db, 'users', user.uid), {
+            uid: user.uid,
+            email: user.email,
+            displayName: user.displayName,
+            role: userProfile.role,
+            walletAddress: userProfile.walletAddress,
+            createdAt: new Date().toISOString(),
+          }, { merge: true });
+        } catch (err) {
+          console.warn('Could not sync user to Firestore:', err);
+        }
+      }
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  const signInWithGoogle = async () => {
+    try {
+      await signInWithPopup(auth, googleProvider);
+    } catch (err: any) {
+      console.error('Firebase Google Sign-In Error:', err);
+      throw err;
+    }
+  };
+
+  const signOutFirebase = async () => {
+    try {
+      await fbSignOut(auth);
+      setFirebaseUser(null);
+      setCurrentUser(DEFAULT_USERS[0]);
+    } catch (err: any) {
+      console.error('Firebase Sign-Out Error:', err);
+    }
+  };
 
   // Initial Seeds
   const [intakes, setIntakes] = useState<SymptomIntake[]>([
@@ -550,6 +644,25 @@ export const HospitalProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
     setIntakes(prev => [newIntake, ...prev]);
     setOriginalNotesStore(prev => ({ ...prev, [newIntake.id]: data.clinicalNotes }));
+
+    // Persist to Firestore
+    if (firebaseUser) {
+      try {
+        await addDoc(collection(db, 'intakes'), {
+          ...data,
+          patientId: firebaseUser.uid,
+          patientName: currentUser.name,
+          patientAddress: currentUser.walletAddress,
+          ipfsHash,
+          severity: calculatedSeverity,
+          status: 'Pending_Triage',
+          createdAt: new Date().toISOString(),
+        });
+      } catch (err) {
+        console.warn('Could not save intake to Firestore:', err);
+      }
+    }
+
     return newIntake;
   };
 
@@ -856,6 +969,10 @@ export const HospitalProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         availableUsers,
         switchUser,
         switchRole,
+        firebaseUser,
+        signInWithGoogle,
+        signOutFirebase,
+        isFirebaseConnected,
         intakes,
         consultations,
         onChainRecords,
