@@ -1,13 +1,25 @@
-// Safeguard against interceptor extensions attempting to assign to getter-only window.fetch
+// Safeguard against interceptor extensions attempting to assign to getter-only window.fetch or Window.prototype.fetch
 try {
-  const _orig = window.fetch;
-  let _current = _orig;
-  Object.defineProperty(window, 'fetch', {
-    get: () => _current,
-    set: (v) => { _current = v; },
-    configurable: true,
-    enumerable: true,
-  });
+  let _currentFetch = window.fetch ? window.fetch.bind(window) : undefined;
+  try {
+    Object.defineProperty(window, 'fetch', {
+      get: () => _currentFetch,
+      set: (v) => { _currentFetch = v; },
+      configurable: true,
+      enumerable: true,
+    });
+  } catch (_) {}
+
+  try {
+    if (typeof Window !== 'undefined' && Window.prototype) {
+      Object.defineProperty(Window.prototype, 'fetch', {
+        get: () => _currentFetch,
+        set: (v) => { _currentFetch = v; },
+        configurable: true,
+        enumerable: true,
+      });
+    }
+  } catch (_) {}
 } catch (_) {}
 
 import {createRoot} from 'react-dom/client';

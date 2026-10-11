@@ -1,5 +1,5 @@
 /**
- * Cryptographic utility functions for DeHosp-Chain
+ * Cryptographic utility functions for Hospi-Chain
  * Implements Web Crypto API SHA-256, Merkle Trees, and verifiable SVG QR encoding.
  */
 

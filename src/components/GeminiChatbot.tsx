@@ -1,20 +1,26 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useHospital } from '../context/HospitalContext';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from './ui/card';
+import { Button } from './ui/button';
+import { Badge } from './ui/badge';
+import { Input } from './ui/input';
 import { 
   Bot, 
   Send, 
-  Sparkles, 
   User, 
   Loader2, 
   Trash2, 
-  ShieldAlert, 
   Cpu, 
   Settings2,
-  Mic
+  Copy,
+  Check,
+  Sparkles,
+  Layers,
+  Terminal
 } from 'lucide-react';
 import { AudioTranscriber } from './AudioTranscriber';
-import { db, handleFirestoreError, OperationType } from '../firebase';
-import { collection, addDoc, query, where, orderBy, onSnapshot } from 'firebase/firestore';
+import { db } from '../firebase';
+import { collection, addDoc } from 'firebase/firestore';
 
 interface Message {
   id: string;
@@ -25,7 +31,8 @@ interface Message {
 }
 
 export const GeminiChatbot: React.FC = () => {
-  const { currentUser, firebaseUser } = useHospital();
+  const { firebaseUser } = useHospital();
+  const messagesEndRef = useRef<HTMLDivElement | null>(null);
   
   // Model state: gemini-3.5-flash (general), gemini-3.1-pro-preview (complex), gemini-3.1-flash-lite (fast)
   const [model, setModel] = useState<string>('gemini-3.5-flash');
@@ -37,21 +44,34 @@ export const GeminiChatbot: React.FC = () => {
       id: 'msg-seed-1',
       role: 'model',
       content: 
-        'Hello! I am the DeHosp-Chain Communicable Disease & Epidemiological AI Advisor. I can assist you with infection triage assessment, quarantine protocols, differential diagnosis for regional pathogens (Lassa fever, Mpox, Cholera), and explain how our smart contracts enforce immutable audit trails. How can I assist you today?',
+        'Hello. I am the Hospi-Chain Communicable Disease & Epidemiological Decision Support Agent. I assist clinicians and public health officers with pathogen triage evaluation, isolation quarantine timelines, differential diagnoses for endemic outbreaks (Lassa fever, Mpox Clade II, Cholera), and cryptographically verified audit trails.',
       timestamp: Date.now() - 60000,
       modelUsed: 'gemini-3.5-flash',
     },
   ]);
 
-  const messagesEndRef = useRef<HTMLDivElement | null>(null);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  const handleCopyMessage = (id: string, text: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedId(id);
+    setTimeout(() => setCopiedId(null), 2000);
+  };
+
+  const quickPrompts = [
+    { label: 'Lassa Fever vs Malaria Differential Triage Signs', id: '01' },
+    { label: 'Smart Contract Immutability vs Centralized DB Comparison', id: '02' },
+    { label: 'Mpox Clade II Infection Control & Barrier Nursing Criteria', id: '03' },
+    { label: 'Solidity Event Emitted upon Quarantine Violation', id: '04' },
+  ];
 
   const systemInstructions: Record<string, string> = {
     clinical: 
-      'You are a senior infectious disease clinical specialist and virology consultant for DeHosp-Chain online hospital. You advise patients and doctors on communicable disease containment, symptoms, incubation periods, and barrier nursing protocols.',
+      'You are a senior infectious disease clinical specialist and virology consultant for Hospi-Chain online hospital. You advise patients and doctors on communicable disease containment, symptoms, incubation periods, and barrier nursing protocols.',
     epidemiology: 
       'You are a state outbreak surveillance epidemiologist. You analyze regional transmission vectors, active case velocity, threshold alarms, and recommend public health containment measures.',
     blockchain: 
-      'You are the lead distributed systems architect for DeHosp-Chain. You provide technical explanations of how Solidity smart contracts, Merkle roots, SHA-256 IPFS hashes, and hybrid storage eliminate single points of failure in telemedicine.',
+      'You are the lead distributed systems architect for Hospi-Chain. You provide technical explanations of how Solidity smart contracts, Merkle roots, SHA-256 IPFS hashes, and hybrid storage eliminate single points of failure in telemedicine.',
   };
 
   const scrollToBottom = () => {
@@ -80,7 +100,6 @@ export const GeminiChatbot: React.FC = () => {
     setIsLoading(true);
 
     try {
-      // Persist to Firestore if user is authenticated
       if (firebaseUser) {
         try {
           await addDoc(collection(db, 'chats'), {
@@ -156,7 +175,7 @@ export const GeminiChatbot: React.FC = () => {
       {
         id: `msg-${Date.now()}`,
         role: 'model',
-        content: 'Conversation history reset. How can I help with communicable disease care today?',
+        content: 'Session state initialized. Triage dialogue ready.',
         timestamp: Date.now(),
         modelUsed: model,
       },
@@ -164,81 +183,81 @@ export const GeminiChatbot: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col h-[750px] border border-slate-800 bg-slate-900/80 rounded-2xl overflow-hidden shadow-2xl">
+    <Card className="flex flex-col h-[740px] rounded-sm overflow-hidden">
       
-      {/* Top Header with Model & Role Selection */}
-      <div className="p-4 border-b border-slate-800 bg-slate-950 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div className="flex items-center gap-2.5">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-teal-500/10 text-teal-400 border border-teal-500/30">
-            <Bot className="h-4 w-4" />
+      {/* Swiss Engineering Header Toolbar */}
+      <CardHeader className="p-4 border-b border-zinc-800 bg-zinc-950/90 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <div className="flex h-8 w-8 items-center justify-center rounded-sm bg-rose-600 text-white font-mono font-bold text-xs">
+            AI
           </div>
           <div>
-            <div className="font-semibold text-white text-sm flex items-center gap-2">
-              <span>Gemini Clinical Triage Advisor</span>
-              <span className="text-[10px] font-mono text-teal-400 bg-teal-950 px-2 py-0.5 rounded border border-teal-800">
-                Multi-Turn
-              </span>
+            <div className="font-bold text-white text-sm flex items-center gap-2 font-sans">
+              <span>Gemini Clinical Triage Copilot</span>
+              <Badge variant="outline" className="font-mono text-[9px]">
+                MULTI-TURN RPC
+              </Badge>
             </div>
-            <div className="text-[11px] text-slate-400">
-              Role-guided clinical AI assistant with model switching
+            <div className="text-[10px] text-zinc-400 font-mono">
+              ROLE: <strong className="text-zinc-200">{rolePreset.toUpperCase()}</strong> · ENGINE: <strong className="text-zinc-200">{model}</strong>
             </div>
           </div>
         </div>
 
-        {/* Model & Persona Selector Controls */}
-        <div className="flex flex-wrap items-center gap-2 text-xs">
-          {/* Model selector */}
-          <div className="flex items-center gap-1.5 bg-slate-900 border border-slate-800 px-2.5 py-1 rounded-lg">
-            <Cpu className="h-3.5 w-3.5 text-slate-400" />
+        {/* Model & Persona Selectors */}
+        <div className="flex flex-wrap items-center gap-2 text-xs font-mono">
+          <div className="flex items-center gap-1.5 bg-zinc-900 border border-zinc-800 px-2 py-1 rounded-sm">
+            <Cpu className="h-3 w-3 text-zinc-400" />
             <select
               value={model}
               onChange={e => setModel(e.target.value)}
-              className="bg-transparent text-slate-200 text-xs font-mono focus:outline-none cursor-pointer"
+              className="bg-transparent text-zinc-200 text-xs focus:outline-none cursor-pointer"
             >
-              <option value="gemini-3.5-flash" className="bg-slate-900 text-slate-200">
+              <option value="gemini-3.5-flash" className="bg-zinc-950 text-zinc-200">
                 gemini-3.5-flash (General)
               </option>
-              <option value="gemini-3.1-pro-preview" className="bg-slate-900 text-slate-200">
+              <option value="gemini-3.1-pro-preview" className="bg-zinc-950 text-zinc-200">
                 gemini-3.1-pro-preview (Complex)
               </option>
-              <option value="gemini-3.1-flash-lite" className="bg-slate-900 text-slate-200">
+              <option value="gemini-3.1-flash-lite" className="bg-zinc-950 text-zinc-200">
                 gemini-3.1-flash-lite (Fast)
               </option>
             </select>
           </div>
 
-          {/* Role Preset selector */}
-          <div className="flex items-center gap-1.5 bg-slate-900 border border-slate-800 px-2.5 py-1 rounded-lg">
-            <Settings2 className="h-3.5 w-3.5 text-slate-400" />
+          <div className="flex items-center gap-1.5 bg-zinc-900 border border-zinc-800 px-2 py-1 rounded-sm">
+            <Settings2 className="h-3 w-3 text-zinc-400" />
             <select
               value={rolePreset}
               onChange={e => setRolePreset(e.target.value)}
-              className="bg-transparent text-slate-200 text-xs focus:outline-none cursor-pointer"
+              className="bg-transparent text-zinc-200 text-xs focus:outline-none cursor-pointer"
             >
-              <option value="clinical" className="bg-slate-900 text-slate-200">
+              <option value="clinical" className="bg-zinc-950 text-zinc-200">
                 Clinical Virology Doctor
               </option>
-              <option value="epidemiology" className="bg-slate-900 text-slate-200">
+              <option value="epidemiology" className="bg-zinc-950 text-zinc-200">
                 Outbreak Epidemiologist
               </option>
-              <option value="blockchain" className="bg-slate-900 text-slate-200">
+              <option value="blockchain" className="bg-zinc-950 text-zinc-200">
                 Blockchain Architect
               </option>
             </select>
           </div>
 
-          <button
+          <Button
+            variant="ghost"
+            size="icon"
             onClick={handleClearHistory}
-            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-colors"
-            title="Clear conversation thread"
+            className="h-7 w-7 text-zinc-400 hover:text-white"
+            title="Reset thread"
           >
-            <Trash2 className="h-4 w-4" />
-          </button>
+            <Trash2 className="h-3.5 w-3.5" />
+          </Button>
         </div>
-      </div>
+      </CardHeader>
 
-      {/* Scrollable Message Thread */}
-      <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4">
+      {/* Message Feed */}
+      <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 bg-zinc-950/40">
         {messages.map(msg => {
           const isUser = msg.role === 'user';
           return (
@@ -247,36 +266,58 @@ export const GeminiChatbot: React.FC = () => {
               className={`flex gap-3 max-w-3xl ${isUser ? 'ml-auto flex-row-reverse' : 'mr-auto'}`}
             >
               <div
-                className={`flex h-8 w-8 shrink-0 select-none items-center justify-center rounded-lg text-xs font-bold ${
+                className={`flex h-7 w-7 shrink-0 select-none items-center justify-center rounded-sm text-[10px] font-mono font-bold ${
                   isUser
-                    ? 'bg-teal-500 text-slate-950'
-                    : 'bg-slate-800 text-teal-400 border border-slate-700'
+                    ? 'bg-zinc-100 text-zinc-950'
+                    : 'bg-zinc-900 text-rose-400 border border-zinc-800'
                 }`}
               >
-                {isUser ? <User className="h-4 w-4" /> : <Bot className="h-4 w-4" />}
+                {isUser ? 'U' : 'AI'}
               </div>
 
               <div className={`space-y-1 ${isUser ? 'items-end' : 'items-start'}`}>
                 <div
-                  className={`rounded-2xl px-4 py-3 text-xs leading-relaxed ${
+                  className={`rounded-sm px-4 py-3 text-xs leading-relaxed ${
                     isUser
-                      ? 'bg-teal-500 text-slate-950 font-medium'
-                      : 'bg-slate-950 border border-slate-800 text-slate-200'
+                      ? 'bg-zinc-800 text-white font-medium border border-zinc-700'
+                      : 'bg-zinc-950 border border-zinc-800 text-zinc-200 font-sans'
                   }`}
                 >
                   <p className="whitespace-pre-wrap">{msg.content}</p>
                 </div>
 
                 <div
-                  className={`flex items-center gap-2 text-[10px] font-mono text-slate-500 px-1 ${
+                  className={`flex items-center gap-2 text-[10px] font-mono text-zinc-500 px-1 ${
                     isUser ? 'justify-end' : 'justify-start'
                   }`}
                 >
                   <span>{new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                   {msg.modelUsed && (
                     <>
-                      <span>·</span>
+                      <span>/</span>
                       <span>{msg.modelUsed}</span>
+                    </>
+                  )}
+                  {!isUser && (
+                    <>
+                      <span>/</span>
+                      <button
+                        onClick={() => handleCopyMessage(msg.id, msg.content)}
+                        className="hover:text-rose-400 transition-colors flex items-center gap-1 font-mono cursor-pointer"
+                        title="Copy message"
+                      >
+                        {copiedId === msg.id ? (
+                          <>
+                            <Check className="h-3 w-3 text-emerald-400" />
+                            <span className="text-emerald-400">COPIED</span>
+                          </>
+                        ) : (
+                          <>
+                            <Copy className="h-3 w-3" />
+                            <span>COPY</span>
+                          </>
+                        )}
+                      </button>
                     </>
                   )}
                 </div>
@@ -287,12 +328,12 @@ export const GeminiChatbot: React.FC = () => {
 
         {isLoading && (
           <div className="flex gap-3 mr-auto max-w-xl">
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-slate-800 text-teal-400 border border-slate-700">
-              <Bot className="h-4 w-4" />
+            <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-sm bg-zinc-900 text-rose-400 border border-zinc-800 font-mono text-[10px]">
+              AI
             </div>
-            <div className="rounded-2xl bg-slate-950 border border-slate-800 px-4 py-3 text-xs text-slate-400 flex items-center gap-2">
-              <Loader2 className="h-3.5 w-3.5 animate-spin text-teal-400" />
-              <span>Thinking with {model}...</span>
+            <div className="rounded-sm bg-zinc-950 border border-zinc-800 px-4 py-3 text-xs text-zinc-400 flex items-center gap-2 font-mono">
+              <Loader2 className="h-3.5 w-3.5 animate-spin text-rose-500" />
+              <span>Computing clinical response with {model}...</span>
             </div>
           </div>
         )}
@@ -300,37 +341,53 @@ export const GeminiChatbot: React.FC = () => {
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Chat Input Bar with integrated Audio Transcription */}
-      <div className="p-3 sm:p-4 border-t border-slate-800 bg-slate-950">
-        <div className="flex items-center justify-between mb-2">
+      {/* Suggested Quick Prompts Grid */}
+      <div className="px-4 py-2 border-t border-zinc-800 bg-zinc-950 overflow-x-auto flex gap-2">
+        {quickPrompts.map(p => (
+          <button
+            key={p.id}
+            onClick={() => setInput(p.label)}
+            className="flex items-center gap-1.5 text-[10px] text-zinc-400 hover:text-white bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 rounded-sm px-2.5 py-1 whitespace-nowrap transition-colors font-mono cursor-pointer"
+          >
+            <span className="text-rose-500 font-bold">{p.id}</span>
+            <span className="font-sans text-[11px]">{p.label}</span>
+          </button>
+        ))}
+      </div>
+
+      {/* Input Area */}
+      <div className="p-3 sm:p-4 border-t border-zinc-800 bg-zinc-950 space-y-2">
+        <div className="flex items-center justify-between">
           <AudioTranscriber
             onTranscriptionComplete={text => setInput(prev => (prev ? `${prev} ${text}` : text))}
-            buttonLabel="Voice Dictation (gemini-3.5-transcribe)"
+            buttonLabel="Voice Dictate"
           />
-          <span className="text-[11px] text-slate-500 font-mono">
-            Active Model: <span className="text-teal-400 font-semibold">{model}</span>
+          <span className="text-[10px] text-zinc-500 font-mono">
+            ENGINE: <strong className="text-zinc-300">{model}</strong>
           </span>
         </div>
 
         <form onSubmit={handleSendMessage} className="flex gap-2">
-          <input
+          <Input
             type="text"
             value={input}
             onChange={e => setInput(e.target.value)}
-            placeholder="Ask about communicable triage, Lassa fever protocols, or smart contract verification..."
-            className="flex-1 rounded-xl border border-slate-800 bg-slate-900 px-4 py-2.5 text-xs text-slate-200 placeholder-slate-500 focus:border-teal-500 focus:outline-none"
+            placeholder="Ask regarding differential diagnoses, quarantine protocol, or Merkle tree consensus..."
+            className="text-xs"
           />
-          <button
+          <Button
             type="submit"
             disabled={!input.trim() || isLoading}
-            className="px-4 py-2.5 rounded-xl bg-teal-400 hover:bg-teal-300 text-slate-950 font-semibold text-xs transition-colors flex items-center gap-1.5 disabled:opacity-40"
+            variant="swiss"
+            size="default"
+            className="gap-1.5 font-mono text-xs shrink-0"
           >
             <Send className="h-3.5 w-3.5" />
-            <span>Send</span>
-          </button>
+            <span>SEND</span>
+          </Button>
         </form>
       </div>
 
-    </div>
+    </Card>
   );
 };

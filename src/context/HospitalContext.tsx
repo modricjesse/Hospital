@@ -13,6 +13,7 @@ import {
   TriageSeverity,
 } from '../types/hospital';
 import { computeSha256, computeMerkleRoot, syncComputePseudoHash } from '../utils/crypto';
+import { ToastMessage } from '../components/Toast';
 import { 
   auth, 
   db, 
@@ -92,6 +93,11 @@ interface HospitalContextType {
     tampered: boolean;
   }>;
   restoreOriginalNotes: (intakeId: string) => void;
+
+  // Toast Notifications
+  toasts: ToastMessage[];
+  addToast: (toast: Omit<ToastMessage, 'id'>) => void;
+  dismissToast: (id: string) => void;
 }
 
 const DEFAULT_USERS: UserProfile[] = [
@@ -101,7 +107,7 @@ const DEFAULT_USERS: UserProfile[] = [
     role: 'Patient',
     walletAddress: '0x71C3526f8C2449826317AbC20967A8114c934982',
     jurisdiction: 'Enugu North',
-    email: 'amaka.obi@student.unn.edu.ng',
+    email: 'patient.obi@hospi-chain.org',
   },
   {
     id: 'user-doc-1',
@@ -124,11 +130,11 @@ const DEFAULT_USERS: UserProfile[] = [
   },
   {
     id: 'user-admin-1',
-    name: 'Muodili Sopuluchukwu Jesse',
+    name: 'Chief Medical Administrator',
     role: 'Admin',
     walletAddress: '0x55C62a11b6F86fEEf0e1398863A2fEFE64d2BEEF',
-    jurisdiction: 'UNN Dept of Computer Science (Lead Architect)',
-    email: 'modricjesse@gmail.com',
+    jurisdiction: 'Hospital Protocol Governance',
+    email: 'admin@hospi-chain.org',
   },
 ];
 
@@ -188,6 +194,19 @@ export const HospitalProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [activeSession, setActiveSession] = useState<ConsultationSession | null>(null);
   const [originalNotesStore, setOriginalNotesStore] = useState<Record<string, string>>({});
   const [tamperedIntakeIds, setTamperedIntakeIds] = useState<Set<string>>(new Set());
+  const [toasts, setToasts] = useState<ToastMessage[]>([]);
+
+  const addToast = (toast: Omit<ToastMessage, 'id'>) => {
+    const id = `toast-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
+    setToasts(prev => [...prev, { ...toast, id }]);
+    setTimeout(() => {
+      setToasts(prev => prev.filter(t => t.id !== id));
+    }, 5500);
+  };
+
+  const dismissToast = (id: string) => {
+    setToasts(prev => prev.filter(t => t.id !== id));
+  };
 
   // Firebase State
   const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(null);
@@ -206,7 +225,7 @@ export const HospitalProvider: React.FC<{ children: React.ReactNode }> = ({ chil
           id: user.uid,
           name: user.displayName || 'Google User',
           email: user.email || undefined,
-          role: user.email === 'modricjesse@gmail.com' ? 'Admin' : 'Patient',
+          role: user.email?.includes('admin') || user.email === 'modricjesse@gmail.com' ? 'Admin' : 'Patient',
           walletAddress: '0x' + user.uid.replace(/[^a-fA-F0-9]/g, '').padEnd(40, '0').slice(0, 40),
           jurisdiction: 'Enugu Health District (Firebase Verified)',
         };
@@ -645,6 +664,12 @@ export const HospitalProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     setIntakes(prev => [newIntake, ...prev]);
     setOriginalNotesStore(prev => ({ ...prev, [newIntake.id]: data.clinicalNotes }));
 
+    addToast({
+      type: calculatedSeverity === 'Critical' ? 'error' : calculatedSeverity === 'High' ? 'warning' : 'success',
+      title: 'Triage Intake Submitted',
+      message: `${currentUser.name} registered. Severity: ${calculatedSeverity}. IPFS SHA-256 hash generated.`,
+    });
+
     // Persist to Firestore
     if (firebaseUser) {
       try {
@@ -697,6 +722,11 @@ export const HospitalProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     );
 
     setActiveSession(newSession);
+    addToast({
+      type: 'info',
+      title: 'Telemedicine Session Ready',
+      message: `Consultation session initialized for ${intake.patientName} (${intake.category}).`,
+    });
     return newSession;
   };
 
@@ -888,6 +918,12 @@ export const HospitalProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       );
 
       setActiveSession(null);
+      addToast({
+        type: 'success',
+        title: 'Block Mined & Confirmed',
+        message: `Block #${nextBlockNumber} sealed with 1 transaction. Pathogen: ${params.pathogenRef}.`,
+        txHash,
+      });
       return { txHash, blockNumber: nextBlockNumber };
     } finally {
       setIsMining(false);
@@ -900,6 +936,11 @@ export const HospitalProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         rx.id === prescriptionId ? { ...rx, dispensed: true, dispensedAt: Date.now() } : rx
       )
     );
+    addToast({
+      type: 'success',
+      title: 'Prescription Dispensed',
+      message: 'On-chain pharmacy verification completed and medication marked as dispensed.',
+    });
   };
 
   // Security & Data Integrity Testing Lab
@@ -908,6 +949,11 @@ export const HospitalProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       prev.map(i => (i.id === intakeId ? { ...i, clinicalNotes: tamperedText } : i))
     );
     setTamperedIntakeIds(prev => new Set(prev).add(intakeId));
+    addToast({
+      type: 'warning',
+      title: 'Tampering Simulated',
+      message: 'Off-chain note was altered. Run integrity verification to observe smart contract hash mismatch.',
+    });
   };
 
   const restoreOriginalNotes = (intakeId: string) => {
@@ -920,6 +966,11 @@ export const HospitalProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         const next = new Set(prev);
         next.delete(intakeId);
         return next;
+      });
+      addToast({
+        type: 'info',
+        title: 'Original Notes Restored',
+        message: 'Clinical text reverted. Cryptographic hash matches on-chain entry.',
       });
     }
   };
@@ -992,6 +1043,9 @@ export const HospitalProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         simulateTampering,
         verifyIntegrity,
         restoreOriginalNotes,
+        toasts,
+        addToast,
+        dismissToast,
       }}
     >
       {children}

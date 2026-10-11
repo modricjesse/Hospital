@@ -1,20 +1,24 @@
 import React, { useState } from 'react';
 import { useHospital } from '../context/HospitalContext';
 import { SymptomIntake } from '../types/hospital';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from './ui/card';
+import { Button } from './ui/button';
+import { Badge } from './ui/badge';
+import { Input } from './ui/input';
+import { Alert, AlertTitle, AlertDescription } from './ui/alert';
 import { 
   Thermometer, 
   Clock, 
-  FileCheck2, 
-  ShieldAlert, 
   Video, 
   Pill, 
   CheckCircle2, 
-  AlertTriangle, 
-  QrCode, 
-  ExternalLink,
-  ChevronRight,
-  Upload,
-  Lock
+  Upload, 
+  Lock, 
+  Activity,
+  FileCheck2,
+  Calendar,
+  Layers,
+  ArrowRight
 } from 'lucide-react';
 import { formatAddress, formatTxHash, generateSvgQrMatrix } from '../utils/crypto';
 import { AudioTranscriber } from './AudioTranscriber';
@@ -26,7 +30,8 @@ export const PatientPortal: React.FC<{ onLaunchCall: (consultId: string) => void
     onChainRecords, 
     prescriptions, 
     submitSymptomIntake, 
-    activeSession 
+    activeSession,
+    dispensePrescription
   } = useHospital();
 
   // Intake Form State (Section 3.3.7 Input Design)
@@ -42,6 +47,18 @@ export const PatientPortal: React.FC<{ onLaunchCall: (consultId: string) => void
   const [submitting, setSubmitting] = useState<boolean>(false);
   const [submissionSuccess, setSubmissionSuccess] = useState<boolean>(false);
   const [activeTab, setActiveTab] = useState<'intake' | 'quarantine' | 'prescriptions' | 'records'>('intake');
+
+  // Live Triage Pre-Assessment Calculation
+  const isCriticalTemp = temperature >= 39.0;
+  const isHighTemp = temperature >= 38.5;
+  let liveSeverity: 'Low' | 'Moderate' | 'High' | 'Critical' = 'Low';
+  if (isCriticalTemp || (isHighTemp && (category === 'Viral Hemorrhagic' || selectedSigns.includes('Dyspnea') || selectedSigns.includes('Hemoptysis')))) {
+    liveSeverity = 'Critical';
+  } else if (isHighTemp || selectedSigns.length >= 3 || exposureDays >= 5) {
+    liveSeverity = 'High';
+  } else if (temperature >= 37.8 || selectedSigns.length >= 2) {
+    liveSeverity = 'Moderate';
+  }
 
   const visibleSignsOptions = [
     'Persistent Cough',
@@ -107,506 +124,600 @@ export const PatientPortal: React.FC<{ onLaunchCall: (consultId: string) => void
   }
 
   return (
-    <div className="space-y-8">
-      {/* Top Banner / Welcome with unboxed metadata */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-800">
+    <div className="space-y-4">
+      
+      {/* Streamlined Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-zinc-800">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-white">
-            Patient Telemedicine & Communicable Triage
-          </h1>
-          <div className="flex flex-wrap items-center gap-2 text-xs text-slate-400 mt-1">
-            <span>Identity: {currentUser.name}</span>
-            <span aria-hidden="true">·</span>
-            <span className="font-mono">{formatAddress(currentUser.walletAddress)}</span>
-            <span aria-hidden="true">·</span>
-            <span>Jurisdiction: {currentUser.jurisdiction || 'Enugu Health District'}</span>
-            <span aria-hidden="true">·</span>
-            <span>Cryptographic Session: Active</span>
+          <h2 className="text-lg sm:text-xl font-bold tracking-tight text-white font-sans">
+            Patient Portal & Quarantine Pass
+          </h2>
+          <div className="flex flex-wrap items-center gap-2 text-[11px] text-zinc-400 mt-0.5 font-mono">
+            <span>PATIENT: <strong className="text-zinc-200">{currentUser.name}</strong></span>
+            <span className="text-zinc-600">/</span>
+            <span>ADDR: <strong className="text-zinc-300">{formatAddress(currentUser.walletAddress)}</strong></span>
+            <span className="text-zinc-600">/</span>
+            <span>DISTRICT: <strong className="text-zinc-300">{currentUser.jurisdiction || 'Health District'}</strong></span>
           </div>
         </div>
 
-        {/* Tab Controls (Buttons for interactive state) */}
-        <div className="flex items-center gap-1 p-1 bg-slate-900 border border-slate-800 rounded-lg text-xs self-start">
-          <button
+        {/* Tab Selector Buttons */}
+        <div className="flex items-center gap-1 p-0.5 bg-zinc-950 border border-zinc-800 rounded-md self-start sm:self-center">
+          <Button
+            variant={activeTab === 'intake' ? 'default' : 'ghost'}
+            size="sm"
             onClick={() => setActiveTab('intake')}
-            className={`px-3 py-1.5 font-medium rounded transition-colors ${
-              activeTab === 'intake'
-                ? 'bg-teal-500/20 text-teal-300 font-semibold'
-                : 'text-slate-400 hover:text-slate-200'
-            }`}
+            className="text-xs h-7 px-2.5 cursor-pointer"
           >
             Clinical Intake
-          </button>
-          <button
+          </Button>
+          <Button
+            variant={activeTab === 'quarantine' ? 'default' : 'ghost'}
+            size="sm"
             onClick={() => setActiveTab('quarantine')}
-            className={`px-3 py-1.5 font-medium rounded transition-colors ${
-              activeTab === 'quarantine'
-                ? 'bg-teal-500/20 text-teal-300 font-semibold'
-                : 'text-slate-400 hover:text-slate-200'
-            }`}
+            className="text-xs h-7 px-2.5 cursor-pointer"
           >
             Quarantine Pass
-          </button>
-          <button
+          </Button>
+          <Button
+            variant={activeTab === 'prescriptions' ? 'default' : 'ghost'}
+            size="sm"
             onClick={() => setActiveTab('prescriptions')}
-            className={`px-3 py-1.5 font-medium rounded transition-colors ${
-              activeTab === 'prescriptions'
-                ? 'bg-teal-500/20 text-teal-300 font-semibold'
-                : 'text-slate-400 hover:text-slate-200'
-            }`}
+            className="text-xs h-7 px-2.5 cursor-pointer"
           >
             Prescriptions ({myPrescriptions.length})
-          </button>
-          <button
+          </Button>
+          <Button
+            variant={activeTab === 'records' ? 'default' : 'ghost'}
+            size="sm"
             onClick={() => setActiveTab('records')}
-            className={`px-3 py-1.5 font-medium rounded transition-colors ${
-              activeTab === 'records'
-                ? 'bg-teal-500/20 text-teal-300 font-semibold'
-                : 'text-slate-400 hover:text-slate-200'
-            }`}
+            className="text-xs h-7 px-2.5 cursor-pointer"
           >
-            Ledger History
-          </button>
+            History
+          </Button>
         </div>
       </div>
 
-      {/* Active Consultation Alert Banner if a doctor has accepted the case */}
+      {/* Active WebRTC Consultation Notification Callout */}
       {activeSession && activeSession.patientAddress.toLowerCase() === currentUser.walletAddress.toLowerCase() && (
-        <div className="rounded-xl border border-teal-500/40 bg-teal-950/40 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-teal-500/20 text-teal-300">
-              <Video className="h-5 w-5" />
-            </div>
+        <Alert variant="default" className="border-teal-500/50 bg-teal-950/30">
+          <Video className="h-5 w-5 text-teal-400" />
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 w-full pl-2">
             <div>
-              <div className="font-semibold text-white text-sm">
-                Doctor {activeSession.doctorName} is Waiting in Consultation Room
-              </div>
-              <div className="text-xs text-slate-300 mt-0.5">
-                Encrypted WebRTC P2P Channel Ready · Room ID: <span className="font-mono text-teal-300">{activeSession.roomToken}</span>
-              </div>
+              <AlertTitle className="text-sm font-semibold text-white">
+                Telemedicine Consultation Live: Dr. {activeSession.doctorName}
+              </AlertTitle>
+              <AlertDescription className="text-xs text-zinc-300 font-mono mt-0.5">
+                Room Token: <span className="text-teal-400">{activeSession.roomToken}</span> · End-to-End Encrypted WebRTC P2P
+              </AlertDescription>
             </div>
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={() => onLaunchCall(activeSession.id)}
+              className="gap-2 shrink-0 font-sans"
+            >
+              <Video className="h-4 w-4" />
+              <span>Join Consultation Room</span>
+            </Button>
           </div>
-          <button
-            onClick={() => onLaunchCall(activeSession.id)}
-            className="px-4 py-2 text-xs font-semibold text-slate-950 bg-teal-400 hover:bg-teal-300 rounded-lg transition-colors whitespace-nowrap self-start sm:self-auto flex items-center gap-1.5"
-          >
-            <Video className="h-4 w-4" />
-            Join Consultation Call
-          </button>
-        </div>
+        </Alert>
       )}
 
-      {/* TAB 1: Symptom Intake Form */}
+      {/* TAB 1: Clinical Symptom Intake */}
       {activeTab === 'intake' && (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          <div className="lg:col-span-2 border border-slate-800 bg-slate-900/60 rounded-xl p-6">
-            <div className="mb-6">
-              <h2 className="text-lg font-semibold text-white">Patient Clinical Intake Form</h2>
-              <p className="text-xs text-slate-400 mt-1">
-                Standardized triage intake modeled according to Section 3.3.7. Submissions are encrypted off-chain and referenced by an immutable SHA-256 IPFS hash on-chain.
-              </p>
-            </div>
-
-            {submissionSuccess && (
-              <div className="mb-6 rounded-lg bg-teal-950/60 border border-teal-700/60 p-4 text-xs text-teal-200 flex items-start gap-3">
-                <CheckCircle2 className="h-5 w-5 text-teal-400 shrink-0 mt-0.5" />
-                <div>
-                  <div className="font-bold">Intake Transaction Successfully Signed & Transmitted</div>
-                  <div className="mt-1 text-slate-300">
-                    Your encrypted clinical intake has been submitted to the Infectious Disease triage queue. Attending specialists have been alerted in real time.
-                  </div>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="lg:col-span-2 space-y-6">
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <span className="font-mono text-[10px] tracking-widest text-zinc-500 uppercase">
+                    INPUT SPECIFICATION // SECTION 3.3.7
+                  </span>
+                  <Badge variant="outline" className="font-mono text-[10px]">
+                    SHA-256 HASHED
+                  </Badge>
                 </div>
-              </div>
-            )}
+                <CardTitle className="text-lg">Standardized Triage Intake Form</CardTitle>
+                <CardDescription>
+                  Submissions are signed via private key and anchored on the Ethereum-compatible ledger for immutable verification.
+                </CardDescription>
+              </CardHeader>
 
-            <form onSubmit={handleSubmit} className="space-y-6">
-              {/* Category */}
-              <div>
-                <label className="block text-xs font-medium text-slate-300 mb-2">
-                  1. Primary Symptom Category
-                </label>
-                <select
-                  value={category}
-                  onChange={e => setCategory(e.target.value as any)}
-                  className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-xs text-slate-200 focus:border-teal-500 focus:outline-none"
-                >
-                  <option value="Respiratory">Communicable / Respiratory (e.g., SARS-CoV, Influenza, TB)</option>
-                  <option value="Viral Hemorrhagic">Viral Hemorrhagic (e.g., Lassa Fever, Ebola, Marburg)</option>
-                  <option value="Dermatological / Pox">Dermatological / Pox (e.g., Mpox Clade II, Measles)</option>
-                  <option value="Gastrointestinal">Gastrointestinal / Enteric (e.g., Acute Cholera)</option>
-                  <option value="General Communicable">General Infectious Manifestation</option>
-                </select>
-              </div>
+              <CardContent>
+                {submissionSuccess && (
+                  <Alert variant="success" className="mb-6">
+                    <CheckCircle2 className="h-5 w-5" />
+                    <div>
+                      <AlertTitle>Intake Successfully Committed to Mempool</AlertTitle>
+                      <AlertDescription>
+                        Your encrypted triage record has been broadcast to attending infectious disease clinicians.
+                      </AlertDescription>
+                    </div>
+                  </Alert>
+                )}
 
-              {/* Temperature */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <div className="flex justify-between text-xs text-slate-300 mb-2">
-                    <span className="font-medium">2. Body Temperature (°C)</span>
-                    <span className="font-mono font-bold text-amber-400 tabular-nums">{temperature.toFixed(1)} °C</span>
-                  </div>
-                  <input
-                    type="range"
-                    min="36.0"
-                    max="41.5"
-                    step="0.1"
-                    value={temperature}
-                    onChange={e => setTemperature(parseFloat(e.target.value))}
-                    className="w-full accent-teal-400 h-2 bg-slate-800 rounded-lg cursor-pointer"
-                  />
-                  <div className="flex justify-between text-[10px] text-slate-500 mt-1">
-                    <span>36.0 (Normal)</span>
-                    <span>38.0 (Fever)</span>
-                    <span>40.0+ (Hyperpyrexia)</span>
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-medium text-slate-300 mb-2">
-                    3. Symptom Onset Date
-                  </label>
-                  <input
-                    type="date"
-                    value={onsetDate}
-                    onChange={e => setOnsetDate(e.target.value)}
-                    className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-xs text-slate-200 focus:border-teal-500 focus:outline-none"
-                  />
-                </div>
-              </div>
-
-              {/* Visible Signs Checklist */}
-              <div>
-                <label className="block text-xs font-medium text-slate-300 mb-2">
-                  4. Visible Signs Checklist
-                </label>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                  {visibleSignsOptions.map(sign => {
-                    const isChecked = selectedSigns.includes(sign);
-                    return (
-                      <button
-                        type="button"
-                        key={sign}
-                        onClick={() => handleSignToggle(sign)}
-                        className={`flex items-center gap-2 p-2 rounded-lg border text-xs text-left transition-colors ${
-                          isChecked
-                            ? 'bg-teal-950/60 border-teal-500/60 text-teal-200'
-                            : 'bg-slate-950/40 border-slate-800 text-slate-400 hover:border-slate-700'
-                        }`}
-                      >
-                        <div className={`h-3.5 w-3.5 rounded border flex items-center justify-center shrink-0 ${
-                          isChecked ? 'bg-teal-400 border-teal-400 text-slate-950' : 'border-slate-600'
-                        }`}>
-                          {isChecked && <span className="text-[10px] font-bold">✓</span>}
-                        </div>
-                        <span className="truncate">{sign}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Exposure History */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-medium text-slate-300 mb-2">
-                    5. Known Exposure History (Days Ago)
-                  </label>
-                  <input
-                    type="number"
-                    min="0"
-                    max="30"
-                    value={exposureDays}
-                    onChange={e => setExposureDays(parseInt(e.target.value) || 0)}
-                    className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-xs text-slate-200 focus:border-teal-500 focus:outline-none"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-medium text-slate-300 mb-2">
-                    6. Attached Rapid Test / Laboratory Result
-                  </label>
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="text"
-                      value={testAttachment}
-                      onChange={e => setTestAttachment(e.target.value)}
-                      className="flex-1 rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-xs text-slate-200 focus:border-teal-500 focus:outline-none"
-                    />
-                    <label className="cursor-pointer px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs rounded-lg border border-slate-700 flex items-center gap-1.5 shrink-0">
-                      <Upload className="h-3.5 w-3.5" />
-                      <span>Browse...</span>
-                      <input
-                        type="file"
-                        className="hidden"
-                        onChange={e => {
-                          if (e.target.files && e.target.files[0]) {
-                            setTestAttachment(e.target.files[0].name);
-                          }
-                        }}
-                      />
+                <form onSubmit={handleSubmit} className="space-y-6">
+                  {/* Category Selection */}
+                  <div className="space-y-2">
+                    <label className="block text-xs font-semibold text-zinc-200">
+                      01 / PRIMARY PATHOGEN PROFILE CATEGORY
                     </label>
+                    <select
+                      value={category}
+                      onChange={e => setCategory(e.target.value as any)}
+                      className="w-full rounded-md border border-zinc-800 bg-zinc-950 px-3 py-2 text-xs text-zinc-200 focus:border-rose-500 focus:outline-none font-sans"
+                    >
+                      <option value="Respiratory">Communicable / Respiratory (SARS-CoV-2, Avian Flu, TB)</option>
+                      <option value="Viral Hemorrhagic">Viral Hemorrhagic Fever (Lassa Virus, Ebola, Marburg)</option>
+                      <option value="Dermatological / Pox">Dermatological / Pox (Mpox Clade I/II, Measles)</option>
+                      <option value="Gastrointestinal">Gastrointestinal / Enteric (Vibrio cholerae)</option>
+                      <option value="General Communicable">General Infectious Manifestation</option>
+                    </select>
                   </div>
-                </div>
-              </div>
 
-              {/* Clinical Description */}
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <label className="block text-xs font-medium text-slate-300">
-                    7. Description of Current Symptoms & Location
-                  </label>
-                  <AudioTranscriber
-                    onTranscriptionComplete={text =>
-                      setClinicalNotes(prev => (prev ? `${prev} ${text}` : text))
-                    }
-                    buttonLabel="Dictate Symptoms (gemini-3.5-transcribe)"
-                  />
-                </div>
-                <textarea
-                  rows={3}
-                  value={clinicalNotes}
-                  onChange={e => setClinicalNotes(e.target.value)}
-                  className="w-full rounded-lg border border-slate-700 bg-slate-950 p-3 text-xs text-slate-200 focus:border-teal-500 focus:outline-none resize-none"
-                  placeholder="Detail symptoms, travel history, or high-risk contacts..."
-                />
-              </div>
+                  {/* Temperature & Onset */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <div className="flex justify-between text-xs text-zinc-300">
+                        <span className="font-semibold">02 / CORE TEMPERATURE</span>
+                        <span className="font-mono font-bold text-rose-400 tabular-nums">{temperature.toFixed(1)} °C</span>
+                      </div>
+                      <input
+                        type="range"
+                        min="36.0"
+                        max="41.5"
+                        step="0.1"
+                        value={temperature}
+                        onChange={e => setTemperature(parseFloat(e.target.value))}
+                        className="w-full accent-rose-500 h-1.5 bg-zinc-800 rounded cursor-pointer"
+                      />
+                      <div className="flex items-center gap-1.5 pt-1">
+                        {[
+                          { val: 36.8, label: '36.8° Normal' },
+                          { val: 38.2, label: '38.2° Fever' },
+                          { val: 38.9, label: '38.9° High' },
+                          { val: 40.1, label: '40.1° Critical' },
+                        ].map(t => (
+                          <button
+                            key={t.val}
+                            type="button"
+                            onClick={() => setTemperature(t.val)}
+                            className={`px-2 py-0.5 rounded-sm text-[10px] font-mono border transition-colors ${
+                              temperature === t.val
+                                ? 'bg-zinc-800 text-white border-zinc-600 font-bold'
+                                : 'bg-zinc-950 text-zinc-400 border-zinc-800 hover:text-zinc-200'
+                            }`}
+                          >
+                            {t.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
 
-              {/* Submit CTA */}
-              <div className="pt-2">
-                <button
-                  type="submit"
-                  disabled={submitting}
-                  className="w-full sm:w-auto px-6 py-2.5 rounded-lg bg-teal-400 hover:bg-teal-300 text-slate-950 font-semibold text-xs transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
-                >
-                  <Lock className="h-4 w-4" />
-                  <span>{submitting ? 'Signing via Web3 Wallet...' : 'Submit & Sign Transaction via Wallet'}</span>
-                </button>
-              </div>
-            </form>
+                    <div className="space-y-2">
+                      <label className="block text-xs font-semibold text-zinc-200">
+                        03 / SYMPTOM ONSET DATE
+                      </label>
+                      <Input
+                        type="date"
+                        value={onsetDate}
+                        onChange={e => setOnsetDate(e.target.value)}
+                        className="text-xs font-mono"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Signs Checklist */}
+                  <div className="space-y-2">
+                    <label className="block text-xs font-semibold text-zinc-200">
+                      04 / CLINICAL SIGNS MATRIX
+                    </label>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                      {visibleSignsOptions.map(sign => {
+                        const isChecked = selectedSigns.includes(sign);
+                        return (
+                          <button
+                            type="button"
+                            key={sign}
+                            onClick={() => handleSignToggle(sign)}
+                            className={`flex items-center gap-2 p-2 rounded-sm border text-xs text-left transition-colors font-mono ${
+                              isChecked
+                                ? 'bg-rose-950/30 border-rose-500/60 text-rose-200'
+                                : 'bg-zinc-950 border-zinc-800 text-zinc-400 hover:border-zinc-700'
+                            }`}
+                          >
+                            <div className={`h-3 w-3 rounded-none border flex items-center justify-center shrink-0 ${
+                              isChecked ? 'bg-rose-600 border-rose-600 text-white' : 'border-zinc-700'
+                            }`}>
+                              {isChecked && <span className="text-[9px] font-bold">✓</span>}
+                            </div>
+                            <span className="truncate text-[11px] font-sans">{sign}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Dynamic Pre-Assessment Meter */}
+                  <div className="p-3.5 rounded-sm border border-zinc-800 bg-zinc-950/80 space-y-2">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="font-semibold text-zinc-200 flex items-center gap-1.5 font-sans">
+                        <Activity className="h-3.5 w-3.5 text-rose-500" />
+                        <span>Algorithmic Triage Score</span>
+                      </span>
+                      <Badge 
+                        variant={liveSeverity === 'Critical' ? 'swiss' : liveSeverity === 'High' ? 'warning' : 'secondary'}
+                        className="font-mono text-[10px]"
+                      >
+                        ▪ {liveSeverity.toUpperCase()} PRIORITY
+                      </Badge>
+                    </div>
+                    <p className="text-[11px] text-zinc-400 font-normal leading-relaxed">
+                      {liveSeverity === 'Critical' && 'High-grade hyperpyrexia with severe signs detected. Instant prioritization to Isolation ICU queue.'}
+                      {liveSeverity === 'High' && 'Communicable profile exceeds normal thresholds. Video consultation is recommended.'}
+                      {liveSeverity === 'Moderate' && 'Elevated clinical markers. Scheduled telehealth consult advised.'}
+                      {liveSeverity === 'Low' && 'Mild symptoms. Standard home isolation guidance active.'}
+                    </p>
+                  </div>
+
+                  {/* Exposure Days & Attachment */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <label className="block text-xs font-semibold text-zinc-200">
+                        05 / EXPOSURE HISTORY (DAYS AGO)
+                      </label>
+                      <Input
+                        type="number"
+                        min="0"
+                        max="30"
+                        value={exposureDays}
+                        onChange={e => setExposureDays(parseInt(e.target.value) || 0)}
+                        className="font-mono text-xs"
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="block text-xs font-semibold text-zinc-200">
+                        06 / LAB RESULT / DIAGNOSTIC SCAN
+                      </label>
+                      <div className="flex items-center gap-2">
+                        <Input
+                          type="text"
+                          value={testAttachment}
+                          onChange={e => setTestAttachment(e.target.value)}
+                          className="font-mono text-xs flex-1"
+                        />
+                        <label className="cursor-pointer px-3 py-2 bg-zinc-900 hover:bg-zinc-800 text-zinc-300 text-xs rounded-md border border-zinc-700 flex items-center gap-1.5 shrink-0 font-mono">
+                          <Upload className="h-3.5 w-3.5" />
+                          <span>Attach</span>
+                          <input
+                            type="file"
+                            className="hidden"
+                            onChange={e => {
+                              if (e.target.files && e.target.files[0]) {
+                                setTestAttachment(e.target.files[0].name);
+                              }
+                            }}
+                          />
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Clinical Description & Gemini Dictation */}
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <label className="block text-xs font-semibold text-zinc-200">
+                        07 / CLINICAL NARRATIVE & CONTACTS
+                      </label>
+                      <AudioTranscriber
+                        onTranscriptionComplete={text =>
+                          setClinicalNotes(prev => (prev ? `${prev} ${text}` : text))
+                        }
+                        buttonLabel="Voice Dictation"
+                      />
+                    </div>
+                    <textarea
+                      rows={3}
+                      value={clinicalNotes}
+                      onChange={e => setClinicalNotes(e.target.value)}
+                      className="w-full rounded-md border border-zinc-800 bg-zinc-950 p-3 text-xs text-zinc-200 focus:border-rose-500 focus:outline-none resize-none font-sans"
+                      placeholder="Detail symptoms, travel history, high-density gatherings..."
+                    />
+                  </div>
+
+                  {/* Submission CTA */}
+                  <div className="pt-2">
+                    <Button
+                      type="submit"
+                      disabled={submitting}
+                      variant="swiss"
+                      size="lg"
+                      className="w-full sm:w-auto gap-2"
+                    >
+                      <Lock className="h-4 w-4" />
+                      <span>{submitting ? 'SIGNING TRANSACTION...' : 'SIGN & BROADCAST TO TRIAGE LEDGER'}</span>
+                    </Button>
+                  </div>
+                </form>
+              </CardContent>
+            </Card>
           </div>
 
-          {/* Right Column: Triage Status & Protocol Info */}
+          {/* Right Column: Protocols & Recent History */}
           <div className="space-y-6">
-            <div className="border border-slate-800 bg-slate-900/60 rounded-xl p-5">
-              <h3 className="text-sm font-semibold text-white mb-3">Triage Protocol Guidelines</h3>
-              <p className="text-xs text-slate-400 leading-relaxed mb-4">
-                Under the Nigerian CDC & WHO communicable outbreak guidelines, cases presenting with temperatures ≥ 38.5°C and hemorrhagic or acute vesicular signs are prioritized as High/Critical.
-              </p>
-              
-              <div className="space-y-3 text-xs">
-                <div className="flex items-center justify-between p-2 rounded bg-slate-950/60 border border-slate-800">
-                  <span className="text-slate-400">Target Response Time</span>
-                  <span className="font-mono text-teal-400 font-medium">&lt; 15 mins</span>
+            <Card>
+              <CardHeader>
+                <span className="font-mono text-[10px] text-zinc-500 uppercase tracking-widest">
+                  PROTOCOL SPECS
+                </span>
+                <CardTitle className="text-sm">Infectious Disease Triage Norms</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <p className="text-xs text-zinc-400 leading-relaxed">
+                  Compliant with NCDC Communicable Disease Outbreak Response protocol. Fever ≥ 38.5°C triggers immediate isolation priority.
+                </p>
+                <div className="divide-y divide-zinc-800/80 border border-zinc-800 rounded-sm font-mono text-xs">
+                  <div className="flex justify-between p-2.5">
+                    <span className="text-zinc-500">TRIAGE SLA:</span>
+                    <span className="text-emerald-400 font-bold">&lt; 15 MINS</span>
+                  </div>
+                  <div className="flex justify-between p-2.5">
+                    <span className="text-zinc-500">ENCRYPTION:</span>
+                    <span className="text-zinc-300">AES-256-GCM</span>
+                  </div>
+                  <div className="flex justify-between p-2.5">
+                    <span className="text-zinc-500">PROOF STANDARD:</span>
+                    <span className="text-zinc-300">MERKLE ROOT / SHA-256</span>
+                  </div>
                 </div>
-                <div className="flex items-center justify-between p-2 rounded bg-slate-950/60 border border-slate-800">
-                  <span className="text-slate-400">Data Cryptography</span>
-                  <span className="font-mono text-slate-300">AES-256 GCM</span>
-                </div>
-                <div className="flex items-center justify-between p-2 rounded bg-slate-950/60 border border-slate-800">
-                  <span className="text-slate-400">Proof Verification</span>
-                  <span className="font-mono text-slate-300">SHA-256 On-Chain</span>
-                </div>
-              </div>
-            </div>
+              </CardContent>
+            </Card>
 
-            <div className="border border-slate-800 bg-slate-900/60 rounded-xl p-5">
-              <h3 className="text-sm font-semibold text-white mb-2">My Recent Submissions</h3>
-              <div className="space-y-3 mt-3">
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <span className="font-mono text-[10px] text-zinc-500 uppercase tracking-widest">
+                    RECORDS AUDIT
+                  </span>
+                  <Badge variant="secondary" className="font-mono text-[10px]">
+                    {myIntakes.length} COMMITS
+                  </Badge>
+                </div>
+                <CardTitle className="text-sm">My Intake History</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2.5">
                 {myIntakes.length === 0 ? (
-                  <p className="text-xs text-slate-500 italic">No submissions recorded yet.</p>
+                  <p className="text-xs text-zinc-500 italic font-mono">No prior submissions recorded.</p>
                 ) : (
                   myIntakes.slice(0, 3).map(intake => (
-                    <div key={intake.id} className="p-3 rounded-lg border border-slate-800 bg-slate-950/50 space-y-1.5">
+                    <div key={intake.id} className="p-3 rounded-sm border border-zinc-800 bg-zinc-950/60 space-y-1.5 font-sans">
                       <div className="flex items-center justify-between text-xs">
-                        <span className="font-semibold text-slate-200">{intake.category}</span>
-                        <span className={`text-[10px] uppercase font-bold px-1.5 py-0.5 rounded ${
-                          intake.severity === 'Critical' ? 'bg-rose-950 text-rose-300 border border-rose-800/60' :
-                          intake.severity === 'High' ? 'bg-amber-950 text-amber-300 border border-amber-800/60' :
-                          'bg-slate-800 text-slate-300'
-                        }`}>
+                        <span className="font-semibold text-zinc-200">{intake.category}</span>
+                        <Badge 
+                          variant={intake.severity === 'Critical' ? 'swiss' : intake.severity === 'High' ? 'warning' : 'secondary'}
+                          className="text-[9px] uppercase font-mono"
+                        >
                           {intake.severity}
-                        </span>
+                        </Badge>
                       </div>
-                      <div className="text-[11px] text-slate-400 line-clamp-1">{intake.clinicalNotes}</div>
-                      <div className="flex items-center justify-between text-[10px] text-slate-500 font-mono pt-1 border-t border-slate-800/60">
+                      <p className="text-xs text-zinc-400 line-clamp-1">{intake.clinicalNotes}</p>
+                      <div className="flex justify-between text-[10px] font-mono text-zinc-500 pt-1 border-t border-zinc-800/80">
                         <span>CID: {formatTxHash(intake.ipfsHash)}</span>
                         <span>{new Date(intake.submittedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                       </div>
                     </div>
                   ))
                 )}
-              </div>
-            </div>
+              </CardContent>
+            </Card>
           </div>
         </div>
       )}
 
-      {/* TAB 2: Quarantine Pass & Countdown Registry */}
+      {/* TAB 2: Quarantine Digital Pass */}
       {activeTab === 'quarantine' && (
-        <div className="border border-slate-800 bg-slate-900/60 rounded-xl p-6">
-          <div className="max-w-3xl">
-            <h2 className="text-lg font-semibold text-white mb-1">
-              Smart-Contract-Enforced Quarantine Status
-            </h2>
-            <p className="text-xs text-slate-400 mb-6">
-              Deterministic quarantine verification governed by <code className="text-teal-400 font-mono">HospitalCommunicableDiseaseLedger.sol</code>. State updates are signed by licensed epidemiologists and verifiable across jurisdictions without central database access.
-            </p>
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <span className="font-mono text-[10px] tracking-widest text-zinc-500 uppercase">
+                SMART CONTRACT STATE // QUARANTINE REGISTRY
+              </span>
+              <Badge variant={isQuarantineActive ? "warning" : "verified"} className="font-mono text-[10px]">
+                {isQuarantineActive ? '▪ ACTIVE ISOLATION ORDER' : '▪ ZERO ACTIVE RESTRICTIONS'}
+              </Badge>
+            </div>
+            <CardTitle className="text-lg">Cryptographic Quarantine Verification</CardTitle>
+            <CardDescription>
+              State updates are signed on-chain by licensed physicians and verifiable by border control authorities without central database exposure.
+            </CardDescription>
+          </CardHeader>
 
+          <CardContent>
             {myQuarantineRecord ? (
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
-                {/* Quarantine Pass Card */}
-                <div className="md:col-span-2 border border-teal-500/30 bg-slate-950 rounded-xl p-6 relative overflow-hidden">
-                  <div className="flex items-center justify-between border-b border-slate-800 pb-4 mb-4">
+                <div className="md:col-span-2 border border-zinc-800 bg-zinc-950 rounded-sm p-6 space-y-6">
+                  <div className="flex items-center justify-between border-b border-zinc-800 pb-4">
                     <div>
-                      <div className="text-xs font-mono uppercase text-teal-400 tracking-wider font-semibold">
-                        Official Health Authority Pass
+                      <div className="text-[10px] font-mono uppercase text-rose-500 tracking-wider font-bold">
+                        MINISTRY OF HEALTH & CDC ENFORCEMENT
                       </div>
-                      <div className="text-base font-bold text-white mt-0.5">
+                      <div className="text-base font-bold text-white mt-0.5 font-sans">
                         Statutory Quarantine Order #{myQuarantineRecord.consultationId.slice(-6).toUpperCase()}
                       </div>
                     </div>
-                    <span className="px-2 py-1 bg-amber-950/80 border border-amber-700/60 text-amber-300 font-mono text-[11px] rounded uppercase font-semibold">
+                    <Badge variant={isQuarantineActive ? "swiss" : "verified"}>
                       {isQuarantineActive ? 'Active Isolation' : 'Isolation Cleared'}
-                    </span>
+                    </Badge>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4 text-xs mb-6">
+                  <div className="grid grid-cols-2 gap-4 text-xs font-mono">
                     <div>
-                      <span className="text-slate-500 block text-[11px]">Patient Subject</span>
-                      <span className="text-white font-medium">{currentUser.name}</span>
-                      <span className="text-slate-400 font-mono text-[10px] block mt-0.5">{formatAddress(currentUser.walletAddress)}</span>
+                      <span className="text-zinc-500 block text-[10px]">PATIENT SUBJECT:</span>
+                      <span className="text-white font-bold font-sans">{currentUser.name}</span>
+                      <span className="text-zinc-500 text-[10px] block">{formatAddress(currentUser.walletAddress)}</span>
                     </div>
 
                     <div>
-                      <span className="text-slate-500 block text-[11px]">Identified Pathogen</span>
-                      <span className="text-rose-400 font-medium">{myQuarantineRecord.pathogenRef}</span>
-                      <span className="text-slate-400 font-mono text-[10px] block mt-0.5">ICD-11: {myQuarantineRecord.icd11Code}</span>
+                      <span className="text-zinc-500 block text-[10px]">IDENTIFIED PATHOGEN:</span>
+                      <span className="text-rose-400 font-bold font-sans">{myQuarantineRecord.pathogenRef}</span>
+                      <span className="text-zinc-500 text-[10px] block">ICD-11: {myQuarantineRecord.icd11Code}</span>
                     </div>
 
                     <div>
-                      <span className="text-slate-500 block text-[11px]">Certifying Physician</span>
-                      <span className="text-slate-300 font-medium">{formatAddress(myQuarantineRecord.doctor)}</span>
+                      <span className="text-zinc-500 block text-[10px]">CERTIFYING PHYSICIAN:</span>
+                      <span className="text-zinc-300">{formatAddress(myQuarantineRecord.doctor)}</span>
                     </div>
 
                     <div>
-                      <span className="text-slate-500 block text-[11px]">Enforced Jurisdictional Zone</span>
-                      <span className="text-slate-300 font-medium">{currentUser.jurisdiction || 'Enugu North District'}</span>
+                      <span className="text-zinc-500 block text-[10px]">ENFORCEMENT ZONE:</span>
+                      <span className="text-zinc-300 font-sans">{currentUser.jurisdiction || 'Enugu Health District'}</span>
                     </div>
                   </div>
 
-                  {/* Countdown Timer */}
-                  <div className="bg-slate-900/90 border border-slate-800 rounded-lg p-4 mb-4">
-                    <div className="flex items-center justify-between text-xs mb-1">
-                      <span className="text-slate-400 flex items-center gap-1.5">
-                        <Clock className="h-3.5 w-3.5 text-teal-400" />
+                  {/* Isolation Countdown */}
+                  <div className="bg-zinc-900 border border-zinc-800 p-4 rounded-sm space-y-2">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-zinc-300 flex items-center gap-1.5 font-medium">
+                        <Clock className="h-3.5 w-3.5 text-rose-500" />
                         <span>Mandatory Isolation Countdown</span>
                       </span>
-                      <span className="font-mono text-teal-400 font-semibold">{hoursRemaining} Hours Remaining</span>
+                      <span className="font-mono text-rose-400 font-bold tabular-nums">
+                        {hoursRemaining} Hours Remaining
+                      </span>
                     </div>
-                    <div className="w-full bg-slate-800 h-2 rounded-full overflow-hidden mt-2">
+                    <div className="w-full bg-zinc-950 h-2 rounded-none border border-zinc-800 overflow-hidden">
                       <div 
-                        className="bg-teal-400 h-full rounded-full transition-all"
+                        className="bg-rose-500 h-full transition-all"
                         style={{ width: `${Math.min(100, Math.max(10, (1 - hoursRemaining / (14 * 24)) * 100))}%` }}
                       />
                     </div>
-                    <div className="text-[10px] text-slate-500 flex justify-between mt-1.5 font-mono">
-                      <span>Certified Inception: {new Date(myQuarantineRecord.timestamp * 1000).toLocaleDateString()}</span>
+                    <div className="flex justify-between text-[10px] font-mono text-zinc-500 pt-1">
+                      <span>Inception: {new Date(myQuarantineRecord.timestamp * 1000).toLocaleDateString()}</span>
                       <span>Release: {new Date(myQuarantineRecord.quarantineExpiration * 1000).toLocaleDateString()}</span>
                     </div>
                   </div>
 
-                  <div className="text-[11px] text-slate-400 flex items-center justify-between font-mono pt-3 border-t border-slate-800">
-                    <span>Block #{myQuarantineRecord.blockNumber}</span>
-                    <span className="text-slate-500">Tx: {formatTxHash(myQuarantineRecord.txHash)}</span>
+                  <div className="flex items-center justify-between text-[11px] font-mono text-zinc-500 pt-2 border-t border-zinc-800">
+                    <span>Block: #{myQuarantineRecord.blockNumber}</span>
+                    <span>Tx: {formatTxHash(myQuarantineRecord.txHash)}</span>
                   </div>
                 </div>
 
                 {/* QR Code Verification Card */}
-                <div className="border border-slate-800 bg-slate-950 rounded-xl p-5 flex flex-col items-center text-center">
-                  <div className="text-xs font-semibold text-slate-200 mb-1">Cryptographic Verifier</div>
-                  <div className="text-[10px] text-slate-400 mb-3">Scannable by Border Control & State Epidemiologists</div>
-                  
+                <div className="border border-zinc-800 bg-zinc-950 rounded-sm p-6 flex flex-col items-center text-center space-y-4">
+                  <div>
+                    <div className="text-xs font-bold text-white font-mono uppercase tracking-wider">
+                      VERIFIER QR CODE
+                    </div>
+                    <div className="text-[10px] text-zinc-400 mt-0.5">
+                      Border Checkpoint Scannable
+                    </div>
+                  </div>
+
                   <div 
-                    className="p-2 bg-white rounded-lg shadow-inner"
+                    className="p-3 bg-white rounded-none shadow-sm"
                     dangerouslySetInnerHTML={{
-                      __html: generateSvgQrMatrix(`DEHOSP_QUARANTINE:${myQuarantineRecord.consultationId}:${myQuarantineRecord.txHash}`, 140)
+                      __html: generateSvgQrMatrix(`HOSPI_QUARANTINE:${myQuarantineRecord.consultationId}:${myQuarantineRecord.txHash}`, 140)
                     }}
                   />
 
-                  <div className="text-[10px] font-mono text-slate-500 mt-3 break-all">
+                  <div className="font-mono text-[10px] text-zinc-500 break-all">
                     SIG: {myQuarantineRecord.ipfsClinicalHash.slice(0, 18)}...
                   </div>
 
-                  <div className="mt-4 pt-3 border-t border-slate-800 w-full text-center">
-                    <span className="text-[11px] text-teal-400 font-medium">Status: Tamper-Proof</span>
-                  </div>
+                  <Badge variant="verified" className="font-mono text-[10px]">
+                    ▪ VERIFIED ON-CHAIN
+                  </Badge>
                 </div>
               </div>
             ) : (
-              <div className="p-8 text-center border border-dashed border-slate-800 rounded-xl">
-                <CheckCircle2 className="h-8 w-8 text-teal-400 mx-auto mb-2" />
+              <div className="p-12 text-center border border-dashed border-zinc-800 rounded-sm space-y-2">
+                <CheckCircle2 className="h-8 w-8 text-emerald-400 mx-auto" />
                 <h3 className="text-sm font-semibold text-white">No Active Quarantine Enforced</h3>
-                <p className="text-xs text-slate-400 mt-1 max-w-sm mx-auto">
-                  You are currently not flagged under an active communicable quarantine order. If diagnosed by an attending clinician, your cryptographic pass will automatically appear here.
+                <p className="text-xs text-zinc-400 max-w-sm mx-auto">
+                  You are currently clear of mandatory isolation protocols.
                 </p>
               </div>
             )}
-          </div>
-        </div>
+          </CardContent>
+        </Card>
       )}
 
-      {/* TAB 3: E-Prescriptions */}
+      {/* TAB 3: Verifiable Prescriptions */}
       {activeTab === 'prescriptions' && (
-        <div className="border border-slate-800 bg-slate-900/60 rounded-xl p-6">
-          <div className="max-w-4xl">
-            <div className="flex items-center justify-between mb-6">
-              <div>
-                <h2 className="text-lg font-semibold text-white">Cryptographically Signed Prescriptions</h2>
-                <p className="text-xs text-slate-400 mt-0.5">
-                  Electronic prescriptions recorded to the ledger to prevent prescription forgery and track therapeutic protocols.
-                </p>
-              </div>
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <span className="font-mono text-[10px] tracking-widest text-zinc-500 uppercase">
+                SMART PRESCRIPTIONS // DISPENSING LEDGER
+              </span>
+              <Badge variant="secondary" className="font-mono text-[10px]">
+                {myPrescriptions.length} AUTHORIZED
+              </Badge>
             </div>
+            <CardTitle className="text-lg">Cryptographically Signed E-Prescriptions</CardTitle>
+            <CardDescription>
+              Smart contract recorded pharmaceuticals to prevent duplication and black-market prescription tampering.
+            </CardDescription>
+          </CardHeader>
 
+          <CardContent>
             {myPrescriptions.length === 0 ? (
-              <div className="p-8 text-center border border-dashed border-slate-800 rounded-xl">
-                <Pill className="h-8 w-8 text-slate-500 mx-auto mb-2" />
-                <h3 className="text-sm font-semibold text-white">No Prescriptions Issued</h3>
-                <p className="text-xs text-slate-400 mt-1">
-                  Once your consultation is finalized by a certified physician, signed prescriptions will be issued here.
+              <div className="p-12 text-center border border-dashed border-zinc-800 rounded-sm space-y-2">
+                <Pill className="h-8 w-8 text-zinc-600 mx-auto" />
+                <h3 className="text-sm font-semibold text-white">No Active Prescriptions</h3>
+                <p className="text-xs text-zinc-400">
+                  Signed prescriptions will appear here following doctor diagnosis.
                 </p>
               </div>
             ) : (
               <div className="space-y-4">
                 {myPrescriptions.map(rx => (
-                  <div key={rx.id} className="border border-slate-800 bg-slate-950 rounded-xl p-5 flex flex-col md:flex-row md:items-center justify-between gap-4">
-                    <div className="space-y-1.5 flex-1">
+                  <div key={rx.id} className="border border-zinc-800 bg-zinc-950 rounded-sm p-5 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div className="space-y-2 flex-1">
                       <div className="flex items-center gap-2">
-                        <span className="font-semibold text-white text-sm">{rx.medicationName}</span>
-                        <span className={`text-[10px] font-mono px-2 py-0.5 rounded uppercase font-semibold ${
-                          rx.dispensed ? 'bg-teal-950 text-teal-300 border border-teal-800' : 'bg-amber-950 text-amber-300 border border-amber-800'
-                        }`}>
-                          {rx.dispensed ? 'Dispensed by Pharmacy' : 'Authorized · Ready for Dispensing'}
-                        </span>
+                        <span className="font-bold text-white text-sm font-sans">{rx.medicationName}</span>
+                        <Badge variant={rx.dispensed ? "verified" : "warning"} className="font-mono text-[10px]">
+                          {rx.dispensed ? '▪ DISPENSED' : '▪ AUTHORIZED'}
+                        </Badge>
                       </div>
-                      
-                      <div className="text-xs text-slate-300">
+
+                      <div className="text-xs text-zinc-300 font-sans">
                         {rx.dosageSchedule}
                       </div>
 
-                      <div className="flex flex-wrap items-center gap-3 text-[11px] text-slate-400 pt-1 font-mono">
-                        <span>Physician: {rx.doctorName}</span>
-                        <span aria-hidden="true">·</span>
-                        <span>Issued: {new Date(rx.issuanceTimestamp).toLocaleDateString()}</span>
-                        <span aria-hidden="true">·</span>
-                        <span>Token: {formatTxHash(rx.verificationHash)}</span>
+                      <div className="flex flex-wrap items-center gap-3 text-[10px] text-zinc-500 font-mono pt-1">
+                        <span>PHYSICIAN: {rx.doctorName}</span>
+                        <span className="text-zinc-700">/</span>
+                        <span>ISSUED: {new Date(rx.issuanceTimestamp).toLocaleDateString()}</span>
+                        <span className="text-zinc-700">/</span>
+                        <span>TOKEN: {formatTxHash(rx.verificationHash)}</span>
                       </div>
                     </div>
 
-                    <div className="shrink-0 flex items-center gap-3 self-end md:self-auto">
+                    <div className="shrink-0 flex items-center gap-4 self-end md:self-auto">
+                      {!rx.dispensed ? (
+                        <Button
+                          variant="primary"
+                          size="sm"
+                          onClick={() => dispensePrescription(rx.id)}
+                          className="font-mono text-xs gap-1.5"
+                        >
+                          <Pill className="h-3.5 w-3.5" />
+                          <span>Dispense (Pharmacy)</span>
+                        </Button>
+                      ) : (
+                        <Badge variant="verified" className="font-mono text-xs">
+                          <CheckCircle2 className="h-3.5 w-3.5" />
+                          <span>Dispensed {rx.dispensedAt ? new Date(rx.dispensedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Verified'}</span>
+                        </Badge>
+                      )}
+
                       <div 
                         dangerouslySetInnerHTML={{
-                          __html: generateSvgQrMatrix(`RX_TOKEN:${rx.id}:${rx.verificationHash}`, 64)
+                          __html: generateSvgQrMatrix(`RX_TOKEN:${rx.id}:${rx.verificationHash}`, 60)
                         }}
                       />
                     </div>
@@ -614,50 +725,63 @@ export const PatientPortal: React.FC<{ onLaunchCall: (consultId: string) => void
                 ))}
               </div>
             )}
-          </div>
-        </div>
+          </CardContent>
+        </Card>
       )}
 
       {/* TAB 4: Ledger History */}
       {activeTab === 'records' && (
-        <div className="border border-slate-800 bg-slate-900/60 rounded-xl p-6">
-          <h2 className="text-lg font-semibold text-white mb-1">On-Chain Consultation Records</h2>
-          <p className="text-xs text-slate-400 mb-6">
-            Permanent, verifiable state records stored on the Ethereum-compatible consensus layer.
-          </p>
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <span className="font-mono text-[10px] tracking-widest text-zinc-500 uppercase">
+                ON-CHAIN PROOFS // ETH-EVM COMPATIBLE
+              </span>
+              <Badge variant="secondary" className="font-mono text-[10px]">
+                AUDIT TRAIL
+              </Badge>
+            </div>
+            <CardTitle className="text-lg">Immutable Consultation History</CardTitle>
+            <CardDescription>
+              Every finalized consultation is sealed in a mined block with Merkle proof integrity.
+            </CardDescription>
+          </CardHeader>
 
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead className="bg-slate-950 text-slate-400 font-mono uppercase text-[11px] border-b border-slate-800">
-                <tr>
-                  <th className="py-2.5 px-3">Consultation ID</th>
-                  <th className="py-2.5 px-3">Pathogen Ref</th>
-                  <th className="py-2.5 px-3">ICD-11</th>
-                  <th className="py-2.5 px-3">Physician</th>
-                  <th className="py-2.5 px-3">IPFS CID</th>
-                  <th className="py-2.5 px-3">Block #</th>
-                  <th className="py-2.5 px-3 text-right">Tx Proof</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-800 font-mono">
-                {onChainRecords
-                  .filter(r => r.patient.toLowerCase() === currentUser.walletAddress.toLowerCase())
-                  .map(record => (
-                    <tr key={record.consultationId} className="hover:bg-slate-800/40 transition-colors">
-                      <td className="py-3 px-3 text-slate-200">{formatTxHash(record.consultationId)}</td>
-                      <td className="py-3 px-3 text-white font-sans font-medium">{record.pathogenRef}</td>
-                      <td className="py-3 px-3 text-slate-300">{record.icd11Code}</td>
-                      <td className="py-3 px-3 text-slate-400">{formatAddress(record.doctor)}</td>
-                      <td className="py-3 px-3 text-teal-400">{formatTxHash(record.ipfsClinicalHash)}</td>
-                      <td className="py-3 px-3 text-slate-300">#{record.blockNumber}</td>
-                      <td className="py-3 px-3 text-right text-slate-400">{formatTxHash(record.txHash)}</td>
-                    </tr>
-                  ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
+          <CardContent className="p-0">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs font-mono">
+                <thead className="bg-zinc-950 text-zinc-400 uppercase text-[10px] border-b border-zinc-800 tracking-wider">
+                  <tr>
+                    <th className="py-3 px-4">Consultation ID</th>
+                    <th className="py-3 px-4">Pathogen Ref</th>
+                    <th className="py-3 px-4">ICD-11</th>
+                    <th className="py-3 px-4">Physician</th>
+                    <th className="py-3 px-4">IPFS CID</th>
+                    <th className="py-3 px-4">Block #</th>
+                    <th className="py-3 px-4 text-right">Tx Proof</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-zinc-800/80 bg-zinc-950/40">
+                  {onChainRecords
+                    .filter(r => r.patient.toLowerCase() === currentUser.walletAddress.toLowerCase())
+                    .map(record => (
+                      <tr key={record.consultationId} className="hover:bg-zinc-900/60 transition-colors">
+                        <td className="py-3 px-4 text-zinc-300">{formatTxHash(record.consultationId)}</td>
+                        <td className="py-3 px-4 text-white font-sans font-semibold">{record.pathogenRef}</td>
+                        <td className="py-3 px-4 text-zinc-400">{record.icd11Code}</td>
+                        <td className="py-3 px-4 text-zinc-400">{formatAddress(record.doctor)}</td>
+                        <td className="py-3 px-4 text-teal-400">{formatTxHash(record.ipfsClinicalHash)}</td>
+                        <td className="py-3 px-4 text-zinc-300 tabular-nums">#{record.blockNumber}</td>
+                        <td className="py-3 px-4 text-right text-zinc-500">{formatTxHash(record.txHash)}</td>
+                      </tr>
+                    ))}
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
       )}
+
     </div>
   );
 };

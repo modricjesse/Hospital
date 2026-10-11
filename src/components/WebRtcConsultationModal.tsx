@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useHospital } from '../context/HospitalContext';
+import { Button } from './ui/button';
+import { Badge } from './ui/badge';
 import { 
   Video, 
   VideoOff, 
@@ -11,8 +13,7 @@ import {
   Wind, 
   Thermometer, 
   FileEdit, 
-  ShieldCheck, 
-  Maximize2 
+  ShieldCheck
 } from 'lucide-react';
 
 interface WebRtcConsultationModalProps {
@@ -54,7 +55,6 @@ export const WebRtcConsultationModal: React.FC<WebRtcConsultationModalProps> = (
           }
           setUseRealMedia(true);
         } catch (err: any) {
-          // Fall back gracefully to high-fidelity simulated clinical stream
           setUseRealMedia(false);
           setMediaError('Local camera stream not permitted in current frame - running simulated WebRTC media channel.');
         }
@@ -83,82 +83,85 @@ export const WebRtcConsultationModal: React.FC<WebRtcConsultationModalProps> = (
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/90 backdrop-blur-md p-4 sm:p-6">
-      <div className="w-full max-w-6xl h-[90vh] bg-slate-900 border border-slate-800 rounded-2xl flex flex-col overflow-hidden shadow-2xl">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4 sm:p-6">
+      <div className="w-full max-w-6xl h-[90vh] bg-zinc-950 border border-zinc-800 rounded-sm flex flex-col overflow-hidden shadow-2xl">
         
-        {/* Room Header */}
-        <div className="flex items-center justify-between px-6 py-3.5 border-b border-slate-800 bg-slate-950">
+        {/* Room Header with Swiss Grid Alignment */}
+        <div className="flex items-center justify-between px-6 py-3.5 border-b border-zinc-800 bg-zinc-950">
           <div className="flex items-center gap-3">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-teal-500/20 text-teal-400">
+            <div className="flex h-8 w-8 items-center justify-center rounded-sm bg-rose-600 text-white font-mono font-bold text-xs">
               <Video className="h-4 w-4" />
             </div>
             <div>
-              <div className="font-semibold text-white text-sm">
-                WebRTC P2P Consultation: {activeSession?.patientName || 'Patient Consultation'}
+              <div className="font-bold text-white text-sm font-sans flex items-center gap-2">
+                <span>WebRTC P2P Room: {activeSession?.patientName || 'Clinical Consultation'}</span>
+                <Badge variant="verified" className="font-mono text-[9px]">
+                  VP9 / OPUS ENCRYPTED
+                </Badge>
               </div>
-              <div className="text-[11px] text-slate-400 font-mono">
-                Room: {activeSession?.roomToken || 'room-secure-webrtc'} · Codec: VP9/Opus · Latency: 48ms
+              <div className="text-[10px] text-zinc-400 font-mono">
+                ROOM: <strong className="text-zinc-200">{activeSession?.roomToken || 'room-secure-mesh'}</strong> · MESH LATENCY: 34ms
               </div>
             </div>
           </div>
 
           <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2 bg-slate-900 px-3 py-1 rounded-lg border border-slate-800 text-xs font-mono">
+            <div className="flex items-center gap-2 bg-zinc-900 px-3 py-1 rounded-sm border border-zinc-800 text-xs font-mono">
               <span className="h-2 w-2 rounded-full bg-rose-500 animate-pulse" />
-              <span className="text-white font-medium">{formatTimer(callDuration)}</span>
+              <span className="text-white font-bold tabular-nums">{formatTimer(callDuration)}</span>
             </div>
 
-            <button
+            <Button
+              variant="destructive"
+              size="icon"
               onClick={onClose}
-              className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+              className="h-8 w-8 rounded-sm"
+              title="Leave room"
             >
-              <PhoneOff className="h-5 w-5 text-rose-400" />
-            </button>
+              <PhoneOff className="h-4 w-4" />
+            </Button>
           </div>
         </div>
 
         {/* Video Canvas & Vitals Split */}
-        <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 p-4 gap-4 overflow-hidden bg-slate-950/60">
+        <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 p-4 gap-4 overflow-hidden bg-zinc-950">
           
           {/* Main Video Viewport (Doctor and Patient Split) */}
           <div className="lg:col-span-8 flex flex-col gap-4 h-full">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 flex-1">
               
-              {/* Box 1: Remote Stream (Patient if Doctor is viewing, or Doctor if Patient is viewing) */}
-              <div className="relative rounded-xl overflow-hidden border border-slate-800 bg-slate-950 flex items-center justify-center">
-                <div className="absolute inset-0 bg-radial from-slate-900 via-slate-950 to-black opacity-90" />
-                
-                {/* Simulated Clinical Video Feed */}
+              {/* Box 1: Remote Stream */}
+              <div className="relative rounded-sm overflow-hidden border border-zinc-800 bg-zinc-900 flex items-center justify-center">
                 <div className="relative z-10 flex flex-col items-center text-center p-6 space-y-3">
-                  <div className="h-24 w-24 rounded-full bg-teal-500/10 border-2 border-teal-500/30 flex items-center justify-center text-teal-300 font-bold text-2xl shadow-lg">
-                    {currentUser.role === 'Doctor' ? 'Amaka' : 'Dr. Okafor'}
+                  <div className="h-20 w-20 rounded-sm bg-zinc-950 border border-zinc-800 flex items-center justify-center text-rose-400 font-bold text-xl font-mono shadow-inner">
+                    {currentUser.role === 'Doctor' ? 'PT' : 'DR'}
                   </div>
                   <div>
-                    <div className="font-semibold text-white text-sm">
+                    <div className="font-bold text-white text-sm font-sans">
                       {currentUser.role === 'Doctor' ? activeSession?.patientName || 'Amaka Obi' : 'Dr. Emeka Okafor'}
                     </div>
-                    <div className="text-xs text-slate-400">
-                      {currentUser.role === 'Doctor' ? 'Patient Video Feed (Enugu North)' : 'Lead Virologist (ESUTH)'}
+                    <div className="text-xs text-zinc-400 font-mono text-[11px]">
+                      {currentUser.role === 'Doctor' ? 'Patient Video Feed · Enugu North' : 'Lead Virologist · ESUTH Specialist'}
                     </div>
                   </div>
 
                   {/* Audio wave simulation */}
                   <div className="flex items-center gap-1 h-6">
-                    <span className="w-1 bg-teal-400 h-2 rounded-full animate-pulse" />
-                    <span className="w-1 bg-teal-400 h-4 rounded-full animate-pulse" />
-                    <span className="w-1 bg-teal-400 h-6 rounded-full animate-pulse" />
-                    <span className="w-1 bg-teal-400 h-3 rounded-full animate-pulse" />
-                    <span className="w-1 bg-teal-400 h-5 rounded-full animate-pulse" />
+                    <span className="w-1 bg-rose-500 h-2 rounded-none animate-pulse" />
+                    <span className="w-1 bg-rose-500 h-4 rounded-none animate-pulse" />
+                    <span className="w-1 bg-rose-500 h-6 rounded-none animate-pulse" />
+                    <span className="w-1 bg-rose-500 h-3 rounded-none animate-pulse" />
+                    <span className="w-1 bg-rose-500 h-5 rounded-none animate-pulse" />
                   </div>
                 </div>
 
-                <div className="absolute top-3 left-3 z-20 bg-slate-900/80 backdrop-blur px-2 py-0.5 rounded text-[10px] text-slate-300 border border-slate-800 font-mono">
+                <div className="absolute top-3 left-3 z-20 bg-zinc-950 px-2 py-0.5 rounded-sm text-[9px] text-zinc-300 border border-zinc-800 font-mono">
                   REMOTE PEER
                 </div>
               </div>
 
               {/* Box 2: Local Video Feed */}
-              <div className="relative rounded-xl overflow-hidden border border-slate-800 bg-slate-950 flex items-center justify-center">
+              <div className="relative rounded-sm overflow-hidden border border-zinc-800 bg-zinc-900 flex items-center justify-center">
                 {useRealMedia ? (
                   <video
                     ref={localVideoRef}
@@ -169,20 +172,20 @@ export const WebRtcConsultationModal: React.FC<WebRtcConsultationModalProps> = (
                   />
                 ) : (
                   <div className="relative z-10 flex flex-col items-center text-center p-6 space-y-3">
-                    <div className="h-24 w-24 rounded-full bg-slate-800 border-2 border-slate-700 flex items-center justify-center text-white font-bold text-2xl">
+                    <div className="h-20 w-20 rounded-sm bg-zinc-950 border border-zinc-800 flex items-center justify-center text-white font-bold text-xl font-mono">
                       {currentUser.name.charAt(0)}
                     </div>
                     <div>
-                      <div className="font-semibold text-white text-sm">{currentUser.name}</div>
-                      <div className="text-xs text-slate-400">{currentUser.role} (Local Feed)</div>
+                      <div className="font-bold text-white text-sm font-sans">{currentUser.name}</div>
+                      <div className="text-xs text-zinc-400 font-mono text-[11px]">{currentUser.role} (Local Stream)</div>
                     </div>
-                    <span className="text-[10px] text-slate-500 font-mono">
+                    <span className="text-[10px] text-zinc-500 font-mono">
                       {cameraActive ? 'Camera Active' : 'Camera Disabled'}
                     </span>
                   </div>
                 )}
 
-                <div className="absolute top-3 left-3 z-20 bg-slate-900/80 backdrop-blur px-2 py-0.5 rounded text-[10px] text-teal-300 border border-slate-800 font-mono">
+                <div className="absolute top-3 left-3 z-20 bg-zinc-950 px-2 py-0.5 rounded-sm text-[9px] text-rose-400 border border-zinc-800 font-mono">
                   LOCAL YOU
                 </div>
               </div>
@@ -190,122 +193,124 @@ export const WebRtcConsultationModal: React.FC<WebRtcConsultationModalProps> = (
             </div>
 
             {/* Bottom In-Call Action Bar */}
-            <div className="h-16 bg-slate-950 border border-slate-800 rounded-xl px-6 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <button
+            <div className="h-14 bg-zinc-950 border border-zinc-800 rounded-sm px-4 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Button
+                  variant={micActive ? "secondary" : "destructive"}
+                  size="sm"
                   onClick={() => setMicActive(!micActive)}
-                  className={`p-2.5 rounded-lg border transition-colors ${
-                    micActive
-                      ? 'bg-slate-800 text-white border-slate-700 hover:bg-slate-700'
-                      : 'bg-rose-950 text-rose-300 border-rose-800'
-                  }`}
-                  title={micActive ? 'Mute Mic' : 'Unmute Mic'}
+                  className="h-8 gap-1.5 font-mono text-xs"
                 >
-                  {micActive ? <Mic className="h-4 w-4" /> : <MicOff className="h-4 w-4" />}
-                </button>
+                  {micActive ? <Mic className="h-3.5 w-3.5" /> : <MicOff className="h-3.5 w-3.5" />}
+                  <span>{micActive ? 'Mute' : 'Unmuted'}</span>
+                </Button>
 
-                <button
+                <Button
+                  variant={cameraActive ? "secondary" : "destructive"}
+                  size="sm"
                   onClick={() => setCameraActive(!cameraActive)}
-                  className={`p-2.5 rounded-lg border transition-colors ${
-                    cameraActive
-                      ? 'bg-slate-800 text-white border-slate-700 hover:bg-slate-700'
-                      : 'bg-rose-950 text-rose-300 border-rose-800'
-                  }`}
-                  title={cameraActive ? 'Disable Camera' : 'Enable Camera'}
+                  className="h-8 gap-1.5 font-mono text-xs"
                 >
-                  {cameraActive ? <Video className="h-4 w-4" /> : <VideoOff className="h-4 w-4" />}
-                </button>
+                  {cameraActive ? <Video className="h-3.5 w-3.5" /> : <VideoOff className="h-3.5 w-3.5" />}
+                  <span>{cameraActive ? 'Stop Video' : 'Start Video'}</span>
+                </Button>
               </div>
 
               {currentUser.role === 'Doctor' && (
-                <button
+                <Button
+                  variant="swiss"
+                  size="sm"
                   onClick={() => {
                     onClose();
                     onProceedToDiagnosis();
                   }}
-                  className="px-4 py-2 bg-teal-400 hover:bg-teal-300 text-slate-950 text-xs font-bold rounded-lg transition-colors flex items-center gap-2"
+                  className="gap-2 font-mono text-xs"
                 >
-                  <FileEdit className="h-4 w-4" />
-                  <span>Conclude & Commit Diagnosis On-Chain</span>
-                </button>
+                  <FileEdit className="h-3.5 w-3.5" />
+                  <span>CONCLUDE & COMMIT DIAGNOSIS ON-CHAIN</span>
+                </Button>
               )}
 
-              <button
+              <Button
+                variant="destructive"
+                size="sm"
                 onClick={onClose}
-                className="px-4 py-2 bg-rose-600 hover:bg-rose-500 text-white text-xs font-semibold rounded-lg transition-colors flex items-center gap-1.5"
+                className="gap-1.5 font-mono text-xs"
               >
-                <PhoneOff className="h-4 w-4" />
-                <span>Leave Session</span>
-              </button>
+                <PhoneOff className="h-3.5 w-3.5" />
+                <span>LEAVE</span>
+              </Button>
             </div>
           </div>
 
-          {/* Right: Live Patient Vitals & Examination Scratchpad */}
+          {/* Right: Patient Vitals HUD & Inspection Notes */}
           <div className="lg:col-span-4 flex flex-col gap-4 h-full">
             
             {/* Live Patient Vitals HUD */}
-            <div className="border border-slate-800 bg-slate-900/90 rounded-xl p-4 space-y-3">
-              <div className="flex items-center justify-between border-b border-slate-800 pb-2">
-                <span className="text-xs font-semibold text-white flex items-center gap-1.5">
-                  <Activity className="h-3.5 w-3.5 text-teal-400" />
+            <div className="border border-zinc-800 bg-zinc-900/80 rounded-sm p-4 space-y-3 font-mono">
+              <div className="flex items-center justify-between border-b border-zinc-800 pb-2">
+                <span className="text-xs font-bold text-white flex items-center gap-1.5 font-sans">
+                  <Activity className="h-3.5 w-3.5 text-rose-500" />
                   <span>Remote Vitals HUD</span>
                 </span>
-                <span className="text-[10px] font-mono text-teal-400">P2P Stream</span>
+                <span className="text-[10px] text-rose-400">P2P SENSORS</span>
               </div>
 
-              <div className="grid grid-cols-2 gap-3 text-xs font-mono">
-                <div className="bg-slate-950 p-2.5 rounded-lg border border-slate-800">
-                  <span className="text-slate-500 text-[10px] flex items-center gap-1">
-                    <Thermometer className="h-3 w-3 text-amber-400" />
-                    <span>Body Temp</span>
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                <div className="bg-zinc-950 p-2.5 rounded-sm border border-zinc-800">
+                  <span className="text-zinc-500 text-[10px] flex items-center gap-1">
+                    <Thermometer className="h-3 w-3 text-rose-400" />
+                    <span>BODY TEMP</span>
                   </span>
-                  <div className="text-base font-bold text-amber-400 tabular-nums mt-0.5">
+                  <div className="text-base font-bold text-rose-400 tabular-nums mt-0.5">
                     {patientVitals.temperature.toFixed(1)} °C
                   </div>
-                  <span className="text-[10px] text-slate-500">Elevated Fever</span>
+                  <span className="text-[9px] text-zinc-500">Elevated Fever</span>
                 </div>
 
-                <div className="bg-slate-950 p-2.5 rounded-lg border border-slate-800">
-                  <span className="text-slate-500 text-[10px] flex items-center gap-1">
+                <div className="bg-zinc-950 p-2.5 rounded-sm border border-zinc-800">
+                  <span className="text-zinc-500 text-[10px] flex items-center gap-1">
                     <Heart className="h-3 w-3 text-rose-400" />
-                    <span>Heart Rate</span>
+                    <span>HEART RATE</span>
                   </span>
                   <div className="text-base font-bold text-rose-400 tabular-nums mt-0.5">
                     {patientVitals.heartRate} BPM
                   </div>
-                  <span className="text-[10px] text-slate-500">Sinus Tachycardia</span>
+                  <span className="text-[9px] text-zinc-500">Sinus Tachycardia</span>
                 </div>
 
-                <div className="bg-slate-950 p-2.5 rounded-lg border border-slate-800">
-                  <span className="text-slate-500 text-[10px]">Blood Oxygen (SpO2)</span>
-                  <div className="text-base font-bold text-teal-400 tabular-nums mt-0.5">
+                <div className="bg-zinc-950 p-2.5 rounded-sm border border-zinc-800">
+                  <span className="text-zinc-500 text-[10px]">SPO2 OXYGEN</span>
+                  <div className="text-base font-bold text-emerald-400 tabular-nums mt-0.5">
                     {patientVitals.spO2}%
                   </div>
-                  <span className="text-[10px] text-slate-500">Room Air Saturation</span>
+                  <span className="text-[9px] text-zinc-500">Room Air</span>
                 </div>
 
-                <div className="bg-slate-950 p-2.5 rounded-lg border border-slate-800">
-                  <span className="text-slate-500 text-[10px] flex items-center gap-1">
+                <div className="bg-zinc-950 p-2.5 rounded-sm border border-zinc-800">
+                  <span className="text-zinc-500 text-[10px] flex items-center gap-1">
                     <Wind className="h-3 w-3 text-blue-400" />
-                    <span>Respiratory Rate</span>
+                    <span>RESP. RATE</span>
                   </span>
                   <div className="text-base font-bold text-blue-300 tabular-nums mt-0.5">
                     {patientVitals.respiratoryRate}/min
                   </div>
-                  <span className="text-[10px] text-slate-500">Tachypnea Flag</span>
+                  <span className="text-[9px] text-zinc-500">Tachypnea Flag</span>
                 </div>
               </div>
             </div>
 
-            {/* In-Call Doctor Examination Scratchpad */}
-            <div className="border border-slate-800 bg-slate-900/90 rounded-xl p-4 flex-1 flex flex-col">
-              <div className="text-xs font-semibold text-white mb-2">Clinical Inspection Scratchpad</div>
+            {/* In-Call Clinical Scratchpad */}
+            <div className="border border-zinc-800 bg-zinc-900/80 rounded-sm p-4 flex-1 flex flex-col">
+              <div className="text-xs font-bold text-white mb-2 font-mono uppercase tracking-wider">
+                CLINICAL INSPECTION SCRATCHPAD
+              </div>
               <textarea
                 defaultValue="Visual inspection indicates facial edema and early papular lesions across extremities. Patient confirms sudden fever onset post exposure. Recommended isolation."
-                className="w-full flex-1 rounded-lg border border-slate-800 bg-slate-950 p-3 text-xs text-slate-300 focus:outline-none resize-none font-sans leading-relaxed"
+                className="w-full flex-1 rounded-sm border border-zinc-800 bg-zinc-950 p-3 text-xs text-zinc-200 focus:outline-none resize-none font-sans leading-relaxed"
                 placeholder="Record clinical observations during call..."
               />
-              <div className="mt-2 text-[10px] text-slate-500 font-mono">
+              <div className="mt-2 text-[10px] text-zinc-500 font-mono">
                 Encrypted in browser session memory prior to on-chain hashing.
               </div>
             </div>

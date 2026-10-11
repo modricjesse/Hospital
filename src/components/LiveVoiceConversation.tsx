@@ -1,4 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from './ui/card';
+import { Button } from './ui/button';
+import { Badge } from './ui/badge';
+import { Alert, AlertTitle, AlertDescription } from './ui/alert';
 import { 
   Radio, 
   Mic, 
@@ -6,9 +10,10 @@ import {
   Volume2, 
   VolumeX, 
   AlertCircle, 
-  Sparkles, 
   Square,
-  Activity
+  Activity,
+  Terminal,
+  Cpu
 } from 'lucide-react';
 
 export const LiveVoiceConversation: React.FC = () => {
@@ -145,7 +150,6 @@ export const LiveVoiceConversation: React.FC = () => {
     const ctx = audioContextRef.current;
     if (!ctx) return;
 
-    // Decode base64 to 16-bit PCM little endian
     const binary = atob(base64Audio);
     const bytes = new Uint8Array(binary.length);
     for (let i = 0; i < binary.length; i++) {
@@ -153,7 +157,6 @@ export const LiveVoiceConversation: React.FC = () => {
     }
     const int16 = new Int16Array(bytes.buffer);
 
-    // Convert to Float32 AudioBuffer
     const audioBuffer = ctx.createBuffer(1, int16.length, 24000);
     const channelData = audioBuffer.getChannelData(0);
     for (let i = 0; i < int16.length; i++) {
@@ -164,7 +167,6 @@ export const LiveVoiceConversation: React.FC = () => {
     source.buffer = audioBuffer;
     source.connect(ctx.destination);
 
-    // Schedule gapless playback
     const startTime = Math.max(ctx.currentTime, nextStartTimeRef.current);
     source.start(startTime);
     nextStartTimeRef.current = startTime + audioBuffer.duration;
@@ -202,132 +204,168 @@ export const LiveVoiceConversation: React.FC = () => {
     setIsListening(false);
   };
 
+  const spokenTopics = [
+    { num: '01', text: 'I have high fever and acute rash on palms after visiting an outbreak district.' },
+    { num: '02', text: 'Explain how my quarantine certificate is verified on Ethereum Sepolia.' },
+    { num: '03', text: 'What barrier nursing protocols are recommended for Lassa fever isolation?' },
+    { num: '04', text: 'How do smart contracts eliminate single points of failure in telemedicine?' },
+  ];
+
   return (
-    <div className="border border-slate-800 bg-slate-900/80 rounded-2xl p-6 space-y-6">
+    <Card className="rounded-sm space-y-6 p-6">
       
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800 pb-4">
+      {/* Swiss Architectural Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-zinc-800 pb-4">
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-teal-500/10 text-teal-400 border border-teal-500/30">
+          <div className="flex h-9 w-9 items-center justify-center rounded-sm bg-rose-600 text-white font-mono font-bold text-xs">
             <Radio className="h-5 w-5" />
           </div>
           <div>
-            <h2 className="text-base font-bold text-white flex items-center gap-2">
-              <span>Live Voice Clinical Assistant</span>
-              <span className="text-[10px] font-mono text-teal-300 bg-teal-950 px-2 py-0.5 rounded border border-teal-800 font-semibold">
-                gemini-3.8-live (Live API)
-              </span>
-            </h2>
-            <p className="text-xs text-slate-400">
-              Low-latency real-time voice conversation powered by Gemini Live API
+            <div className="flex items-center gap-2">
+              <h3 className="text-base font-bold text-white font-sans">
+                Live Voice Telemedicine Cockpit
+              </h3>
+              <Badge variant="outline" className="font-mono text-[9px]">
+                gemini-3.8-live · DUPLEX
+              </Badge>
+            </div>
+            <p className="text-xs text-zinc-400 font-mono">
+              AUDIO: 16kHz PCM CAPTURE / 24kHz PCM PLAYBACK
             </p>
           </div>
         </div>
 
         <div>
           {!isConnected ? (
-            <button
+            <Button
+              variant="swiss"
+              size="default"
               onClick={startLiveSession}
-              className="px-4 py-2 rounded-xl bg-teal-400 hover:bg-teal-300 text-slate-950 font-bold text-xs transition-colors flex items-center gap-2"
+              className="gap-2 font-mono text-xs"
             >
               <Mic className="h-4 w-4" />
-              <span>Start Voice Conversation</span>
-            </button>
+              <span>START VOICE CONVERSATION</span>
+            </Button>
           ) : (
-            <button
+            <Button
+              variant="destructive"
+              size="default"
               onClick={stopLiveSession}
-              className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs transition-colors flex items-center gap-2"
+              className="gap-2 font-mono text-xs"
             >
               <Square className="h-3.5 w-3.5 fill-current" />
-              <span>Disconnect Voice Session</span>
-            </button>
+              <span>DISCONNECT SESSION</span>
+            </Button>
           )}
         </div>
       </div>
 
       {error && (
-        <div className="p-3 bg-rose-950/40 border border-rose-800/60 rounded-xl text-xs text-rose-300 flex items-center gap-2">
-          <AlertCircle className="h-4 w-4 shrink-0 text-rose-400" />
-          <span>{error}</span>
-        </div>
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Audio Connection Alert</AlertTitle>
+          <AlertDescription className="font-mono text-xs">{error}</AlertDescription>
+        </Alert>
       )}
 
-      {/* Visualizer & Status Area */}
-      <div className="border border-slate-800 bg-slate-950 rounded-xl p-8 flex flex-col items-center justify-center text-center space-y-4">
+      {/* Visualizer & Console Cockpit */}
+      <div className="border border-zinc-800 bg-zinc-950 rounded-sm p-8 flex flex-col items-center justify-center text-center space-y-5">
         <div className="relative">
           <div
-            className={`h-28 w-28 rounded-full flex items-center justify-center transition-all ${
+            className={`h-28 w-28 rounded-none flex items-center justify-center transition-all border ${
               isConnected
                 ? isSpeaking
-                  ? 'bg-teal-500/20 border-2 border-teal-400 shadow-xl shadow-teal-500/20 animate-pulse'
-                  : 'bg-slate-900 border-2 border-teal-500/40'
-                : 'bg-slate-900 border border-slate-800'
+                  ? 'bg-rose-950/40 border-rose-500 shadow-lg shadow-rose-950/50'
+                  : 'bg-zinc-900 border-rose-500/50'
+                : 'bg-zinc-900 border-zinc-800'
             }`}
           >
             {isConnected ? (
               isSpeaking ? (
-                <Volume2 className="h-10 w-10 text-teal-300" />
+                <Volume2 className="h-10 w-10 text-rose-400 animate-pulse" />
               ) : (
-                <Mic className="h-10 w-10 text-teal-400" />
+                <Mic className="h-10 w-10 text-zinc-100" />
               )
             ) : (
-              <MicOff className="h-10 w-10 text-slate-600" />
+              <MicOff className="h-10 w-10 text-zinc-600" />
             )}
           </div>
 
           {isConnected && (
-            <span className="absolute bottom-0 right-0 h-4 w-4 rounded-full bg-teal-400 border-2 border-slate-950 animate-ping" />
+            <span className="absolute -top-1 -right-1 h-3 w-3 bg-rose-500 animate-ping" />
           )}
         </div>
 
         <div>
-          <div className="text-sm font-semibold text-white">
+          <div className="text-sm font-bold text-white font-mono uppercase tracking-wider">
             {!isConnected
-              ? 'Voice Session Offline'
+              ? '▪ VOICE INTERFACE STANDBY'
               : isSpeaking
-              ? 'Gemini Live Speaking (24kHz PCM)...'
+              ? '▪ GEMINI SYNTHESIZING AUDIO (24kHz)'
               : isListening
-              ? 'Listening to Microphone (16kHz PCM)...'
-              : 'Connected · Awaiting Input'}
+              ? '▪ LISTENING TO MICROPHONE (16kHz PCM)'
+              : '▪ SESSION ESTABLISHED'}
           </div>
-          <div className="text-xs text-slate-400 mt-1 max-w-md">
+          <p className="text-xs text-zinc-400 mt-1 max-w-md font-sans">
             {!isConnected
-              ? 'Click "Start Voice Conversation" to talk directly with the Gemini 3.8 Live API model.'
-              : 'Speak naturally into your microphone. Ask about communicable illnesses, quarantine timelines, or differential diagnosis.'}
-          </div>
+              ? 'Initiate voice link to speak with the real-time Gemini Live AI model.'
+              : 'Speak into your microphone. Converse regarding infectious illnesses, differential diagnosis, and quarantine tracking.'}
+          </p>
         </div>
 
-        {/* Audio Wave Simulation when active */}
+        {/* Audio Wave Simulation */}
         {isConnected && (
           <div className="flex items-center gap-1.5 h-8">
-            {[40, 70, 95, 60, 85, 45, 90, 65, 35, 80, 50].map((h, i) => (
+            {[30, 60, 90, 50, 80, 40, 95, 70, 35, 75, 45].map((h, i) => (
               <span
                 key={i}
-                className="w-1 bg-teal-400 rounded-full transition-all"
+                className="w-1 bg-rose-500 transition-all rounded-none"
                 style={{
-                  height: isSpeaking || isListening ? `${h}%` : '20%',
-                  opacity: isSpeaking || isListening ? 1 : 0.4,
+                  height: isSpeaking || isListening ? `${h}%` : '15%',
+                  opacity: isSpeaking || isListening ? 1 : 0.3,
                 }}
               />
             ))}
           </div>
         )}
+
+        {/* Spoken Topic Prompts in Swiss Grid */}
+        <div className="pt-4 w-full max-w-xl border-t border-zinc-800/80">
+          <div className="text-[10px] text-zinc-500 font-mono uppercase tracking-widest mb-3 text-left">
+            RECOMMENDED CLINICAL QUERIES TO SPEAK:
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+            {spokenTopics.map(topic => (
+              <div 
+                key={topic.num}
+                className="bg-zinc-900 p-2.5 rounded-sm border border-zinc-800 text-left font-mono text-[11px] text-zinc-300 flex items-start gap-2"
+              >
+                <span className="text-rose-500 font-bold">{topic.num}</span>
+                <span className="font-sans text-[11px] text-zinc-300">"{topic.text}"</span>
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
 
       {/* Transcript Feed */}
       {transcriptHistory.length > 0 && (
-        <div className="border border-slate-800 bg-slate-950/60 rounded-xl p-4 space-y-2">
-          <div className="text-xs font-semibold text-slate-300">Live Spoken Transcript</div>
-          <div className="space-y-1 text-xs text-slate-300 font-sans">
+        <Card className="rounded-sm">
+          <CardHeader className="p-4 pb-2 border-b border-zinc-800/60">
+            <CardTitle className="text-xs font-mono uppercase tracking-wider text-zinc-400">
+              LIVE CONVERSATION TRANSCRIPT
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-4 space-y-1.5 font-mono text-xs text-zinc-300">
             {transcriptHistory.map((line, idx) => (
-              <p key={idx} className="bg-slate-900/60 p-2 rounded border border-slate-800/80">
+              <div key={idx} className="bg-zinc-950 p-2.5 rounded-sm border border-zinc-800 text-zinc-300">
                 {line}
-              </p>
+              </div>
             ))}
-          </div>
-        </div>
+          </CardContent>
+        </Card>
       )}
 
-    </div>
+    </Card>
   );
 };

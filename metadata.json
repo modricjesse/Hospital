@@ -1,6 +1,11 @@
 {
-  "name": "DeHosp-Chain: Blockchain Online Hospital for Communicable Diseases",
+  "name": "Hospi-Chain: Blockchain Online Hospital for Communicable Diseases",
   "description": "A decentralized telemedicine and outbreak surveillance platform integrating smart contracts, WebRTC clinical consultations, and tamper-proof quarantine tracking.",
-  "requestFramePermissions": ["camera", "microphone"],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
 }

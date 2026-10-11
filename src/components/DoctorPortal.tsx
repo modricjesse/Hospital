@@ -1,19 +1,24 @@
 import React, { useState } from 'react';
 import { useHospital } from '../context/HospitalContext';
 import { SymptomIntake, TriageSeverity } from '../types/hospital';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from './ui/card';
+import { Button } from './ui/button';
+import { Badge } from './ui/badge';
+import { Input } from './ui/input';
+import { Alert, AlertTitle, AlertDescription } from './ui/alert';
 import { 
   Stethoscope, 
   Video, 
-  FileText, 
-  ShieldAlert, 
   CheckCircle2, 
   Clock, 
   Thermometer, 
   Pill, 
   Lock, 
-  ExternalLink,
   Filter,
-  UserCheck
+  Search,
+  Zap,
+  ShieldAlert,
+  ArrowRight
 } from 'lucide-react';
 import { formatAddress, formatTxHash } from '../utils/crypto';
 import { AudioTranscriber } from './AudioTranscriber';
@@ -30,10 +35,10 @@ export const DoctorPortal: React.FC<DoctorPortalProps> = ({ onLaunchCall }) => {
     activeSession, 
     commitDiagnosisOnChain, 
     isMining,
-    onChainRecords 
   } = useHospital();
 
   const [severityFilter, setSeverityFilter] = useState<'All' | TriageSeverity>('All');
+  const [searchQuery, setSearchQuery] = useState<string>('');
   const [selectedIntake, setSelectedIntake] = useState<SymptomIntake | null>(null);
 
   // Diagnostic Commit Form State
@@ -49,9 +54,50 @@ export const DoctorPortal: React.FC<DoctorPortalProps> = ({ onLaunchCall }) => {
   const [dosageSchedule, setDosageSchedule] = useState<string>('2 tablets orally every 8 hours with meals for 10 days');
   const [commitSuccess, setCommitSuccess] = useState<{ txHash: string; blockNumber: number } | null>(null);
 
+  const applyProtocol = (preset: 'lassa' | 'mpox' | 'sars' | 'cholera') => {
+    if (preset === 'lassa') {
+      setPathogenRef('Viral Hemorrhagic (Lassa Stage 1)');
+      setIcd11Code('1D42.0');
+      setQuarantineEnforced(true);
+      setDurationDays(14);
+      setMedicationName('Ribavirin 400mg + Paracetamol 500mg IV/Oral');
+      setDosageSchedule('2 tablets orally every 8 hours for 10 days with strict isolation fluids');
+      setClinicalNotes('Confirmed arenavirus hemorrhagic criteria. Barrier nursing and contact tracing alert dispatched.');
+    } else if (preset === 'mpox') {
+      setPathogenRef('Mpox (Monkeypox Clade II)');
+      setIcd11Code('1E71');
+      setQuarantineEnforced(true);
+      setDurationDays(21);
+      setMedicationName('Tecovirimat 600mg (TPOXX) + Zinc Calamine Topical');
+      setDosageSchedule('1 capsule twice daily with fatty meal for 14 days');
+      setClinicalNotes('Vesiculopustular skin lesions on hands and face. Mandatory 21-day quarantine until full crust desquamation.');
+    } else if (preset === 'sars') {
+      setPathogenRef('Respiratory SARS-CoV Variant');
+      setIcd11Code('RA01');
+      setQuarantineEnforced(true);
+      setDurationDays(7);
+      setMedicationName('Nirmatrelvir 300mg + Ritonavir 100mg (Paxlovid)');
+      setDosageSchedule('1 dose pack orally every 12 hours for 5 days');
+      setClinicalNotes('Acute respiratory viral manifestation with SpO2 95%. Home isolation and pulse oximetry monitoring enforced.');
+    } else if (preset === 'cholera') {
+      setPathogenRef('Acute Cholera (Vibrio cholerae)');
+      setIcd11Code('1A40');
+      setQuarantineEnforced(true);
+      setDurationDays(5);
+      setMedicationName('Azithromycin 1g Oral Single Dose + WHO ORS Packs');
+      setDosageSchedule('Single stat oral antibiotic dose; continuous fluid replacement with 1L ORS per loose stool');
+      setClinicalNotes('Severe dehydrating diarrhea with enteric pathogen confirmation. Enteric barrier quarantine instituted.');
+    }
+  };
+
   const filteredIntakes = intakes.filter(intake => {
-    if (severityFilter === 'All') return true;
-    return intake.severity === severityFilter;
+    const matchesSev = severityFilter === 'All' || intake.severity === severityFilter;
+    const matchesQuery = 
+      !searchQuery || 
+      intake.patientName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      intake.category.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      intake.clinicalNotes.toLowerCase().includes(searchQuery.toLowerCase());
+    return matchesSev && matchesQuery;
   });
 
   const handleAcceptCase = (intake: SymptomIntake) => {
@@ -85,75 +131,78 @@ export const DoctorPortal: React.FC<DoctorPortalProps> = ({ onLaunchCall }) => {
   };
 
   return (
-    <div className="space-y-8">
-      {/* Header and Doctor credentials */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-800">
+    <div className="space-y-4">
+      
+      {/* Streamlined Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-zinc-800">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-white">
+          <h2 className="text-lg sm:text-xl font-bold tracking-tight text-white font-sans">
             Clinician Triage & Diagnostic Authority
-          </h1>
-          <div className="flex flex-wrap items-center gap-2 text-xs text-slate-400 mt-1">
-            <span>Specialist: {currentUser.name}</span>
-            <span aria-hidden="true">·</span>
-            <span className="font-mono">{formatAddress(currentUser.walletAddress)}</span>
-            <span aria-hidden="true">·</span>
-            <span>License: {currentUser.licenseNumber || 'MDCN-COMM-8821'}</span>
-            <span aria-hidden="true">·</span>
-            <span>Smart Contract Role: Certified Doctor (EVM Verified)</span>
+          </h2>
+          <div className="flex flex-wrap items-center gap-2 text-[11px] text-zinc-400 mt-0.5 font-mono">
+            <span>SPECIALIST: <strong className="text-zinc-200">{currentUser.name}</strong></span>
+            <span className="text-zinc-600">/</span>
+            <span>LICENSE: <strong className="text-zinc-300">{currentUser.licenseNumber || 'MDCN-COMM-8821'}</strong></span>
+            <span className="text-zinc-600">/</span>
+            <span>ADDR: <strong className="text-zinc-300">{formatAddress(currentUser.walletAddress)}</strong></span>
+            <span className="text-zinc-600">/</span>
+            <span className="text-emerald-400 font-semibold">EVM AUTH</span>
           </div>
         </div>
 
         {activeSession && (
-          <button
+          <Button
+            variant="primary"
+            size="sm"
             onClick={() => onLaunchCall(activeSession.id)}
-            className="px-4 py-2 text-xs font-semibold text-slate-950 bg-teal-400 hover:bg-teal-300 rounded-lg transition-colors flex items-center gap-2 self-start"
+            className="gap-2 font-mono h-7.5 px-3 cursor-pointer"
           >
-            <Video className="h-4 w-4" />
-            <span>Return to Active Call with {activeSession.patientName}</span>
-          </button>
+            <Video className="h-3.5 w-3.5" />
+            <span>Active Call: {activeSession.patientName}</span>
+          </Button>
         )}
       </div>
 
       {commitSuccess && (
-        <div className="rounded-xl border border-teal-500/50 bg-teal-950/50 p-4 text-xs text-teal-200 flex items-start gap-3">
-          <CheckCircle2 className="h-5 w-5 text-teal-400 shrink-0 mt-0.5" />
+        <Alert variant="success">
+          <CheckCircle2 className="h-5 w-5" />
           <div className="space-y-1">
-            <div className="font-bold text-sm text-white">
-              Diagnosis and Quarantine Order Successfully Mined On-Chain!
-            </div>
-            <div className="font-mono text-slate-300">
+            <AlertTitle className="text-sm font-semibold text-white">
+              Diagnosis and Quarantine Order Successfully Mined On-Chain
+            </AlertTitle>
+            <AlertDescription className="font-mono text-xs">
               Block #{commitSuccess.blockNumber} · Tx Hash: {commitSuccess.txHash}
-            </div>
-            <div className="text-slate-400">
-              Events emitted: <code className="text-teal-300">ConsultationLogged</code>,{' '}
-              <code className="text-teal-300">QuarantineEnforced</code>, and{' '}
-              <code className="text-teal-300">PublicHealthAlert</code> dispatched to State CDC.
-            </div>
+            </AlertDescription>
           </div>
-        </div>
+        </Alert>
       )}
 
-      {/* Main Grid: Triage Queue on Left, Diagnosis Form on Right */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+      {/* Main Grid: 7 cols queue, 5 cols comitter */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         
-        {/* LEFT COLUMN: Triage Case Queue (7 cols) */}
+        {/* Left Column: Triage Intake Queue */}
         <div className="lg:col-span-7 space-y-4">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
-              <h2 className="text-lg font-semibold text-white">Patient Intake Queue</h2>
-              <p className="text-xs text-slate-400">Real-time communicable cases pending clinical review</p>
+              <h3 className="text-base font-bold text-white font-sans flex items-center gap-2">
+                <span>Patient Intake Queue</span>
+                <Badge variant="outline" className="font-mono text-[10px]">
+                  {filteredIntakes.length} PENDING
+                </Badge>
+              </h3>
+              <p className="text-xs text-zinc-400">Cases prioritized by algorithmic severity thresholds</p>
             </div>
 
-            {/* Filter buttons */}
-            <div className="flex items-center gap-1 p-1 bg-slate-900 border border-slate-800 rounded-lg text-xs">
+            {/* Severity filter tabs */}
+            <div className="flex items-center gap-1 p-1 bg-zinc-950 border border-zinc-800 rounded-md self-start sm:self-auto">
               {(['All', 'Critical', 'High', 'Moderate'] as const).map(sev => (
                 <button
                   key={sev}
                   onClick={() => setSeverityFilter(sev)}
-                  className={`px-2.5 py-1 rounded font-medium transition-colors ${
+                  className={`px-2.5 py-1 rounded-sm text-xs font-mono transition-colors ${
                     severityFilter === sev
-                      ? 'bg-teal-500/20 text-teal-300'
-                      : 'text-slate-400 hover:text-slate-200'
+                      ? 'bg-zinc-800 text-white font-bold border border-zinc-700'
+                      : 'text-zinc-400 hover:text-zinc-200'
                   }`}
                 >
                   {sev}
@@ -162,10 +211,23 @@ export const DoctorPortal: React.FC<DoctorPortalProps> = ({ onLaunchCall }) => {
             </div>
           </div>
 
+          {/* Search Bar */}
+          <div className="relative">
+            <Search className="absolute left-3 top-2.5 h-3.5 w-3.5 text-zinc-500" />
+            <Input
+              type="text"
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              placeholder="Search by patient name, pathogen or symptoms..."
+              className="pl-9 text-xs"
+            />
+          </div>
+
+          {/* Cases List */}
           <div className="space-y-3">
             {filteredIntakes.length === 0 ? (
-              <div className="p-8 text-center border border-dashed border-slate-800 rounded-xl">
-                <p className="text-xs text-slate-400">No triage cases matching current criteria.</p>
+              <div className="p-8 text-center border border-dashed border-zinc-800 rounded-sm">
+                <p className="text-xs text-zinc-400 font-mono">No triage cases matching query criteria.</p>
               </div>
             ) : (
               filteredIntakes.map(intake => {
@@ -174,252 +236,319 @@ export const DoctorPortal: React.FC<DoctorPortalProps> = ({ onLaunchCall }) => {
                 const isInConsult = intake.status === 'In_Consultation';
 
                 return (
-                  <div
+                  <Card
                     key={intake.id}
-                    className={`border rounded-xl p-5 transition-colors ${
+                    className={`transition-colors ${
                       isSelected
-                        ? 'border-teal-500/60 bg-slate-900/90'
-                        : 'border-slate-800 bg-slate-900/50 hover:border-slate-700'
+                        ? 'border-rose-500/80 bg-zinc-950/90'
+                        : 'border-zinc-800 hover:border-zinc-700'
                     }`}
                   >
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
-                      <div className="flex items-center gap-2">
-                        <span className="font-semibold text-white text-sm">{intake.patientName}</span>
-                        <span className="font-mono text-slate-400 text-xs">
-                          {formatAddress(intake.patientAddress)}
-                        </span>
-                      </div>
+                    <div className="p-4 space-y-3">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-white text-sm font-sans">{intake.patientName}</span>
+                          <span className="font-mono text-zinc-500 text-[10px]">
+                            {formatAddress(intake.patientAddress)}
+                          </span>
+                        </div>
 
-                      <div className="flex items-center gap-2">
-                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded uppercase ${
-                          intake.severity === 'Critical' ? 'bg-rose-950 text-rose-300 border border-rose-800/60' :
-                          intake.severity === 'High' ? 'bg-amber-950 text-amber-300 border border-amber-800/60' :
-                          'bg-slate-800 text-slate-300'
-                        }`}>
-                          {intake.severity} Priority
-                        </span>
-
-                        <span className="text-[11px] font-mono text-slate-400">
-                          {intake.temperature.toFixed(1)}°C
-                        </span>
-                      </div>
-                    </div>
-
-                    <div className="text-xs text-slate-300 mb-3 bg-slate-950/60 p-3 rounded-lg border border-slate-800/60">
-                      <div className="font-medium text-teal-400 mb-1">{intake.category}</div>
-                      <p className="text-slate-300 leading-relaxed">{intake.clinicalNotes}</p>
-                    </div>
-
-                    {/* Tags / Signs checklist */}
-                    <div className="flex flex-wrap gap-1.5 mb-3">
-                      {intake.visibleSigns.map(sign => (
-                        <span
-                          key={sign}
-                          className="text-[11px] text-slate-400 bg-slate-800/80 px-2 py-0.5 rounded"
-                        >
-                          {sign}
-                        </span>
-                      ))}
-                    </div>
-
-                    {/* Footer info & CTA */}
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-3 border-t border-slate-800/80 text-xs">
-                      <div className="flex items-center gap-3 text-slate-400 font-mono text-[11px]">
-                        <span>Exposure: {intake.exposureDays}d</span>
-                        <span aria-hidden="true">·</span>
-                        <span>IPFS: {formatTxHash(intake.ipfsHash)}</span>
-                      </div>
-
-                      <div className="flex items-center gap-2">
-                        {isPending && (
-                          <button
-                            onClick={() => handleAcceptCase(intake)}
-                            className="px-3.5 py-1.5 rounded-lg bg-teal-400 hover:bg-teal-300 text-slate-950 font-semibold text-xs transition-colors flex items-center gap-1.5"
+                        <div className="flex items-center gap-2">
+                          <Badge 
+                            variant={intake.severity === 'Critical' ? 'swiss' : intake.severity === 'High' ? 'warning' : 'secondary'}
+                            className="text-[10px] font-mono"
                           >
-                            <Video className="h-3.5 w-3.5" />
-                            <span>Accept & Video Call</span>
-                          </button>
-                        )}
+                            ▪ {intake.severity.toUpperCase()}
+                          </Badge>
+                          <span className="text-xs font-mono font-bold text-rose-400 tabular-nums">
+                            {intake.temperature.toFixed(1)}°C
+                          </span>
+                        </div>
+                      </div>
 
-                        {isInConsult && (
-                          <button
-                            onClick={() => {
-                              setSelectedIntake(intake);
-                              if (activeSession) onLaunchCall(activeSession.id);
-                            }}
-                            className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-teal-300 font-semibold text-xs border border-teal-500/30 flex items-center gap-1.5"
+                      <div className="p-3 bg-zinc-950/80 border border-zinc-800/80 rounded-sm space-y-1">
+                        <div className="font-semibold text-rose-400 text-xs font-mono">{intake.category}</div>
+                        <p className="text-xs text-zinc-300 leading-relaxed font-sans">{intake.clinicalNotes}</p>
+                      </div>
+
+                      <div className="flex flex-wrap gap-1.5">
+                        {intake.visibleSigns.map(sign => (
+                          <span
+                            key={sign}
+                            className="text-[10px] font-mono text-zinc-400 bg-zinc-900 border border-zinc-800 px-2 py-0.5 rounded-sm"
                           >
-                            <Stethoscope className="h-3.5 w-3.5" />
-                            <span>In Consultation</span>
-                          </button>
-                        )}
+                            {sign}
+                          </span>
+                        ))}
+                      </div>
 
-                        <button
-                          onClick={() => setSelectedIntake(intake)}
-                          className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
-                            isSelected
-                              ? 'bg-slate-800 text-white border-slate-600'
-                              : 'text-slate-400 border-slate-800 hover:text-white hover:border-slate-700'
-                          }`}
-                        >
-                          Select for Diagnosis
-                        </button>
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-3 border-t border-zinc-800/80 text-xs">
+                        <div className="flex items-center gap-3 text-zinc-500 font-mono text-[10px]">
+                          <span>EXP: {intake.exposureDays}d</span>
+                          <span>/</span>
+                          <span>CID: {formatTxHash(intake.ipfsHash)}</span>
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          {isPending && (
+                            <Button
+                              variant="swiss"
+                              size="sm"
+                              onClick={() => handleAcceptCase(intake)}
+                              className="font-mono text-[11px]"
+                            >
+                              <Video className="h-3.5 w-3.5" />
+                              <span>Accept & Video Call</span>
+                            </Button>
+                          )}
+
+                          {isInConsult && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                setSelectedIntake(intake);
+                                if (activeSession) onLaunchCall(activeSession.id);
+                              }}
+                              className="font-mono text-[11px] text-teal-400 border-teal-500/40"
+                            >
+                              <Stethoscope className="h-3.5 w-3.5" />
+                              <span>In Consultation</span>
+                            </Button>
+                          )}
+
+                          <Button
+                            variant={isSelected ? 'default' : 'outline'}
+                            size="sm"
+                            onClick={() => setSelectedIntake(intake)}
+                            className="font-mono text-[11px]"
+                          >
+                            {isSelected ? '✓ Selected' : 'Select'}
+                          </Button>
+                        </div>
                       </div>
                     </div>
-                  </div>
+                  </Card>
                 );
               })
             )}
           </div>
         </div>
 
-        {/* RIGHT COLUMN: On-Chain Diagnostic Committer (5 cols) */}
+        {/* Right Column: Diagnostic Committer */}
         <div className="lg:col-span-5">
-          <div className="border border-slate-800 bg-slate-900/70 rounded-xl p-6 sticky top-20">
-            <div className="mb-4">
-              <h2 className="text-base font-semibold text-white">Commit Diagnosis On-Chain</h2>
-              <p className="text-xs text-slate-400 mt-0.5">
-                Executes Solidity function <code className="text-teal-400 font-mono">recordConsultation(...)</code> to log permanent diagnosis and enforce statutory quarantine.
-              </p>
-            </div>
-
-            {selectedIntake ? (
-              <div className="mb-4 p-2.5 rounded-lg bg-slate-950 border border-slate-800 text-xs flex items-center justify-between">
-                <div>
-                  <span className="text-slate-400 block text-[10px]">Patient Selected</span>
-                  <span className="font-semibold text-white">{selectedIntake.patientName}</span>
-                </div>
-                <span className="font-mono text-slate-400 text-[11px]">{formatAddress(selectedIntake.patientAddress)}</span>
+          <Card className="sticky top-20">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <span className="font-mono text-[10px] tracking-widest text-zinc-500 uppercase">
+                  SOLIDITY FUNCTION // RECORD_CONSULTATION
+                </span>
+                <Badge variant="outline" className="font-mono text-[10px]">
+                  GAS OPTIMIZED
+                </Badge>
               </div>
-            ) : (
-              <div className="mb-4 p-2.5 rounded-lg bg-amber-950/40 border border-amber-800/40 text-xs text-amber-300">
-                Please select a patient from the intake queue to commit diagnosis.
-              </div>
-            )}
+              <CardTitle className="text-base">Commit Diagnosis On-Chain</CardTitle>
+              <CardDescription>
+                Seals permanent clinical diagnostic records and emits tamper-evident quarantine smart alerts.
+              </CardDescription>
+            </CardHeader>
 
-            <form onSubmit={handleCommitDiagnosis} className="space-y-4 text-xs">
-              {/* Pathogen */}
-              <div>
-                <label className="block text-slate-300 font-medium mb-1.5">
-                  Confirmed Pathogen Reference
-                </label>
-                <select
-                  value={pathogenRef}
-                  onChange={e => {
-                    setPathogenRef(e.target.value);
-                    if (e.target.value.includes('Lassa')) setIcd11Code('1D42.0');
-                    else if (e.target.value.includes('Mpox')) setIcd11Code('1E71');
-                    else if (e.target.value.includes('SARS')) setIcd11Code('RA01');
-                    else if (e.target.value.includes('Cholera')) setIcd11Code('1A40');
-                  }}
-                  className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-slate-200 focus:border-teal-500 focus:outline-none"
-                >
-                  <option value="Viral Hemorrhagic (Lassa Stage 1)">Viral Hemorrhagic (Lassa Stage 1)</option>
-                  <option value="Mpox (Monkeypox Clade II)">Mpox (Monkeypox Clade II)</option>
-                  <option value="Respiratory SARS-CoV Variant">Respiratory SARS-CoV Variant</option>
-                  <option value="Acute Cholera (Vibrio cholerae)">Acute Cholera (Vibrio cholerae)</option>
-                  <option value="Measles (Morbillivirus)">Measles (Morbillivirus)</option>
-                </select>
-              </div>
-
-              {/* ICD-11 Code */}
-              <div>
-                <label className="block text-slate-300 font-medium mb-1.5">
-                  ICD-11 Diagnostic Classification
-                </label>
-                <input
-                  type="text"
-                  value={icd11Code}
-                  onChange={e => setIcd11Code(e.target.value)}
-                  className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-slate-200 font-mono focus:border-teal-500 focus:outline-none"
-                />
-              </div>
-
-              {/* Quarantine enforcement toggle & duration */}
-              <div className="p-3 bg-slate-950/70 border border-slate-800 rounded-lg space-y-3">
-                <div className="flex items-center justify-between">
+            <CardContent className="space-y-4">
+              {selectedIntake ? (
+                <div className="p-2.5 rounded-sm bg-zinc-950 border border-zinc-800 text-xs flex items-center justify-between font-mono">
                   <div>
-                    <div className="font-semibold text-slate-200">Enforce Legal Quarantine</div>
-                    <div className="text-[10px] text-slate-400">Emits QuarantineEnforced event to ledger</div>
+                    <span className="text-zinc-500 block text-[9px]">TARGET PATIENT:</span>
+                    <span className="font-bold text-white font-sans">{selectedIntake.patientName}</span>
                   </div>
-                  <input
-                    type="checkbox"
-                    checked={quarantineEnforced}
-                    onChange={e => setQuarantineEnforced(e.target.checked)}
-                    className="h-4 w-4 accent-teal-400 rounded cursor-pointer"
+                  <span className="text-rose-400 text-[11px]">{formatAddress(selectedIntake.patientAddress)}</span>
+                </div>
+              ) : (
+                <div className="p-3 rounded-sm bg-zinc-950 border border-zinc-800 text-xs flex items-center justify-between">
+                  <span className="text-zinc-400 font-mono text-[11px]">Select a patient from the queue</span>
+                  {intakes.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setSelectedIntake(intakes[0])}
+                      className="text-rose-400 hover:underline font-mono text-xs"
+                    >
+                      Pick {intakes[0].patientName} →
+                    </button>
+                  )}
+                </div>
+              )}
+
+              {/* 1-Click Protocol Presets */}
+              <div className="p-3 bg-zinc-950 border border-zinc-800 rounded-sm space-y-2">
+                <div className="flex items-center justify-between text-[11px]">
+                  <span className="font-semibold text-zinc-300 font-mono uppercase text-[10px]">
+                    1-CLICK PROTOCOL PRESETS
+                  </span>
+                  <span className="text-[10px] text-zinc-500 font-mono">WHO / NCDC</span>
+                </div>
+                <div className="grid grid-cols-2 gap-1.5 text-[11px] font-mono">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    type="button"
+                    onClick={() => applyProtocol('lassa')}
+                    className="justify-start text-rose-300 h-8"
+                  >
+                    ⚡ Lassa Fever
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    type="button"
+                    onClick={() => applyProtocol('mpox')}
+                    className="justify-start text-amber-300 h-8"
+                  >
+                    ⚡ Mpox Clade II
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    type="button"
+                    onClick={() => applyProtocol('sars')}
+                    className="justify-start text-blue-300 h-8"
+                  >
+                    ⚡ SARS Variant
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    type="button"
+                    onClick={() => applyProtocol('cholera')}
+                    className="justify-start text-teal-300 h-8"
+                  >
+                    ⚡ Acute Cholera
+                  </Button>
+                </div>
+              </div>
+
+              <form onSubmit={handleCommitDiagnosis} className="space-y-4 text-xs">
+                <div className="space-y-1.5">
+                  <label className="block text-zinc-300 font-semibold font-mono text-[10px] uppercase">
+                    PATHOGEN REFERENCE
+                  </label>
+                  <select
+                    value={pathogenRef}
+                    onChange={e => {
+                      setPathogenRef(e.target.value);
+                      if (e.target.value.includes('Lassa')) setIcd11Code('1D42.0');
+                      else if (e.target.value.includes('Mpox')) setIcd11Code('1E71');
+                      else if (e.target.value.includes('SARS')) setIcd11Code('RA01');
+                      else if (e.target.value.includes('Cholera')) setIcd11Code('1A40');
+                    }}
+                    className="w-full rounded-md border border-zinc-800 bg-zinc-950 px-3 py-2 text-zinc-200 focus:border-rose-500 focus:outline-none font-sans"
+                  >
+                    <option value="Viral Hemorrhagic (Lassa Stage 1)">Viral Hemorrhagic (Lassa Stage 1)</option>
+                    <option value="Mpox (Monkeypox Clade II)">Mpox (Monkeypox Clade II)</option>
+                    <option value="Respiratory SARS-CoV Variant">Respiratory SARS-CoV Variant</option>
+                    <option value="Acute Cholera (Vibrio cholerae)">Acute Cholera (Vibrio cholerae)</option>
+                    <option value="Measles (Morbillivirus)">Measles (Morbillivirus)</option>
+                  </select>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="block text-zinc-300 font-semibold font-mono text-[10px] uppercase">
+                    ICD-11 CLASSIFICATION CODE
+                  </label>
+                  <Input
+                    type="text"
+                    value={icd11Code}
+                    onChange={e => setIcd11Code(e.target.value)}
+                    className="font-mono text-xs"
                   />
                 </div>
 
-                {quarantineEnforced && (
-                  <div>
-                    <div className="flex justify-between text-slate-400 text-[11px] mb-1">
-                      <span>Mandatory Duration</span>
-                      <span className="font-mono text-teal-400 font-bold">{durationDays} Days</span>
+                {/* Legal Quarantine Enforcement */}
+                <div className="p-3 bg-zinc-950 border border-zinc-800 rounded-sm space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <div className="font-semibold text-zinc-200 font-sans">Enforce Legal Quarantine</div>
+                      <div className="text-[10px] text-zinc-500 font-mono">Emits QuarantineEnforced event</div>
                     </div>
                     <input
-                      type="range"
-                      min="7"
-                      max="30"
-                      value={durationDays}
-                      onChange={e => setDurationDays(parseInt(e.target.value))}
-                      className="w-full accent-teal-400 h-1.5 bg-slate-800 rounded cursor-pointer"
+                      type="checkbox"
+                      checked={quarantineEnforced}
+                      onChange={e => setQuarantineEnforced(e.target.checked)}
+                      className="h-4 w-4 accent-rose-500 cursor-pointer"
                     />
                   </div>
-                )}
-              </div>
 
-              {/* Electronic Prescription */}
-              <div>
-                <label className="block text-slate-300 font-medium mb-1.5">
-                  Electronic Prescription (Rx)
-                </label>
-                <input
-                  type="text"
-                  value={medicationName}
-                  onChange={e => setMedicationName(e.target.value)}
-                  placeholder="Medication name and dosage form..."
-                  className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-slate-200 mb-2 focus:border-teal-500 focus:outline-none"
-                />
-                <input
-                  type="text"
-                  value={dosageSchedule}
-                  onChange={e => setDosageSchedule(e.target.value)}
-                  placeholder="Dosage instruction schedule..."
-                  className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-slate-200 focus:border-teal-500 focus:outline-none"
-                />
-              </div>
+                  {quarantineEnforced && (
+                    <div className="space-y-1">
+                      <div className="flex justify-between text-zinc-400 text-[10px] font-mono">
+                        <span>ISOLATION DURATION:</span>
+                        <span className="text-rose-400 font-bold">{durationDays} DAYS</span>
+                      </div>
+                      <input
+                        type="range"
+                        min="7"
+                        max="30"
+                        value={durationDays}
+                        onChange={e => setDurationDays(parseInt(e.target.value))}
+                        className="w-full accent-rose-500 h-1 bg-zinc-800 cursor-pointer"
+                      />
+                    </div>
+                  )}
+                </div>
 
-              {/* Clinical Notes */}
-              <div>
-                <div className="flex items-center justify-between mb-1.5">
-                  <label className="block text-slate-300 font-medium">
-                    Off-Chain Examination Findings (Encrypted)
+                {/* Prescription */}
+                <div className="space-y-1.5">
+                  <label className="block text-zinc-300 font-semibold font-mono text-[10px] uppercase">
+                    ELECTRONIC PRESCRIPTION (RX)
                   </label>
-                  <AudioTranscriber
-                    onTranscriptionComplete={text =>
-                      setClinicalNotes(prev => (prev ? `${prev} ${text}` : text))
-                    }
-                    buttonLabel="Dictate Findings (gemini-3.5-transcribe)"
+                  <Input
+                    type="text"
+                    value={medicationName}
+                    onChange={e => setMedicationName(e.target.value)}
+                    placeholder="Medication name..."
+                    className="mb-2 text-xs"
+                  />
+                  <Input
+                    type="text"
+                    value={dosageSchedule}
+                    onChange={e => setDosageSchedule(e.target.value)}
+                    placeholder="Dosage instruction schedule..."
+                    className="text-xs"
                   />
                 </div>
-                <textarea
-                  rows={3}
-                  value={clinicalNotes}
-                  onChange={e => setClinicalNotes(e.target.value)}
-                  className="w-full rounded-lg border border-slate-700 bg-slate-950 p-2.5 text-slate-200 focus:border-teal-500 focus:outline-none resize-none"
-                />
-              </div>
 
-              <button
-                type="submit"
-                disabled={!selectedIntake || isMining}
-                className="w-full py-2.5 rounded-lg bg-teal-400 hover:bg-teal-300 text-slate-950 font-bold text-xs transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
-              >
-                <Lock className="h-4 w-4" />
-                <span>{isMining ? 'Mining Block & Emitting Events...' : 'Sign & Record Consultation (Solidity)'}</span>
-              </button>
-            </form>
-          </div>
+                {/* Clinical Notes */}
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <label className="block text-zinc-300 font-semibold font-mono text-[10px] uppercase">
+                      EXAMINATION FINDINGS (ENCRYPTED)
+                    </label>
+                    <AudioTranscriber
+                      onTranscriptionComplete={text =>
+                        setClinicalNotes(prev => (prev ? `${prev} ${text}` : text))
+                      }
+                      buttonLabel="Voice Dictate"
+                    />
+                  </div>
+                  <textarea
+                    rows={3}
+                    value={clinicalNotes}
+                    onChange={e => setClinicalNotes(e.target.value)}
+                    className="w-full rounded-md border border-zinc-800 bg-zinc-950 p-2.5 text-xs text-zinc-200 focus:border-rose-500 focus:outline-none resize-none font-sans"
+                  />
+                </div>
+
+                <Button
+                  type="submit"
+                  disabled={!selectedIntake || isMining}
+                  variant="swiss"
+                  size="default"
+                  className="w-full gap-2 font-mono"
+                >
+                  <Lock className="h-4 w-4" />
+                  <span>{isMining ? 'MINING BLOCK ON-CHAIN...' : 'SIGN & RECORD CONSULTATION (SOLIDITY)'}</span>
+                </Button>
+              </form>
+            </CardContent>
+          </Card>
         </div>
 
       </div>

@@ -20,49 +20,49 @@ export const AcademicReportModal: React.FC<AcademicReportModalProps> = ({ onClos
   const [activeSection, setActiveSection] = useState<'overview' | 'architecture' | 'uml' | 'evaluation' | 'references'>('overview');
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/90 backdrop-blur-md p-4 sm:p-6">
-      <div className="w-full max-w-5xl h-[92vh] bg-slate-900 border border-slate-800 rounded-2xl flex flex-col overflow-hidden shadow-2xl">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4 sm:p-6">
+      <div className="w-full max-w-5xl h-[92vh] bg-zinc-950 border border-zinc-800 rounded-sm flex flex-col overflow-hidden shadow-2xl">
         
         {/* Modal Top Bar */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-800 bg-slate-950">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-800 bg-zinc-950">
           <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-amber-500/10 text-amber-400 border border-amber-500/30">
-              <GraduationCap className="h-5 w-5" />
+            <div className="flex h-9 w-9 items-center justify-center rounded-sm bg-rose-500/10 text-rose-400 border border-rose-500/30">
+              <BookOpen className="h-5 w-5" />
             </div>
             <div>
-              <div className="font-bold text-white text-base">
-                University of Nigeria, Nsukka (UNN) · B.Sc. Project Report
+              <div className="font-bold text-white text-base font-sans">
+                Hospi-Chain · Technical Architecture & System Specification
               </div>
-              <div className="text-xs text-slate-400 font-mono">
-                Candidate: MUODILI SOPULUCHUKWU JESSE · Reg: 2021/249152 · Dept of Computer Science
+              <div className="text-xs text-zinc-400 font-mono">
+                DECENTRALIZED TELEMEDICINE PROTOCOL FOR COMMUNICABLE DISEASE CONTAINMENT
               </div>
             </div>
           </div>
 
           <button
             onClick={onClose}
-            className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+            className="p-1.5 rounded-sm text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors cursor-pointer"
           >
             <X className="h-5 w-5" />
           </button>
         </div>
 
         {/* Navigation Tabs */}
-        <div className="flex border-b border-slate-800 bg-slate-950/60 px-6 gap-6 text-xs font-medium overflow-x-auto">
+        <div className="flex border-b border-zinc-800 bg-zinc-900/60 px-6 gap-6 text-xs font-mono font-medium overflow-x-auto">
           {[
-            { id: 'overview', label: '1. Dissertation Overview' },
-            { id: 'architecture', label: '2. Four-Tier Architecture' },
-            { id: 'uml', label: '3. UML Modeling & OOAD' },
-            { id: 'evaluation', label: '4. Evaluation & Results' },
-            { id: 'references', label: '5. Academic References' },
+            { id: 'overview', label: '01 / DISSERTATION OVERVIEW' },
+            { id: 'architecture', label: '02 / FOUR-TIER ARCHITECTURE' },
+            { id: 'uml', label: '03 / UML MODELING & OOAD' },
+            { id: 'evaluation', label: '04 / EVALUATION & RESULTS' },
+            { id: 'references', label: '05 / ACADEMIC REFERENCES' },
           ].map(tab => (
             <button
               key={tab.id}
               onClick={() => setActiveSection(tab.id as any)}
-              className={`py-3 border-b-2 transition-colors whitespace-nowrap ${
+              className={`py-3 border-b-2 transition-colors whitespace-nowrap cursor-pointer ${
                 activeSection === tab.id
-                  ? 'border-amber-400 text-amber-300 font-semibold'
-                  : 'border-transparent text-slate-400 hover:text-slate-200'
+                  ? 'border-rose-500 text-white font-bold'
+                  : 'border-transparent text-zinc-400 hover:text-zinc-200'
               }`}
             >
               {tab.label}
@@ -77,22 +77,22 @@ export const AcademicReportModal: React.FC<AcademicReportModalProps> = ({ onClos
           {activeSection === 'overview' && (
             <div className="space-y-6 max-w-4xl mx-auto">
               <div className="border border-slate-800 bg-slate-950 p-6 rounded-xl text-center space-y-2">
-                <span className="text-[11px] font-mono uppercase tracking-widest text-amber-400 font-semibold">
-                  Department of Computer Science · Faculty of Physical Sciences
+                <span className="text-[11px] font-mono uppercase tracking-widest text-teal-400 font-semibold">
+                  Protocol Specification & Engineering Whitepaper
                 </span>
                 <h1 className="text-lg sm:text-xl font-bold text-white uppercase tracking-tight">
                   Design and Integration of Blockchain into an Online Hospital for Communicable Diseases
                 </h1>
                 <div className="text-xs text-slate-400 pt-2 font-mono">
-                  By: MUODILI SOPULUCHUKWU JESSE (Reg: 2021/249152) · September, 2026
+                  Hospi-Chain Engineering Protocol · Consensus v3.4
                 </div>
               </div>
 
-              {/* Certification Box */}
+              {/* Specification Overview Box */}
               <div className="border border-slate-800 bg-slate-900/60 p-5 rounded-xl space-y-2">
-                <h2 className="text-sm font-semibold text-white">Academic Certification</h2>
+                <h2 className="text-sm font-semibold text-white">System Context & Architectural Scope</h2>
                 <p className="text-slate-300">
-                  This certifies that this project was carried out by <strong className="text-white">MUODILI SOPULUCHUKWU JESSE</strong> (2021/249152) in the Department of Computer Science, Faculty of Physical Sciences, University of Nigeria, Nsukka, under faculty supervision in partial fulfillment of the requirements for the award of Bachelor of Science (B.Sc.) in Computer Science.
+                  This document specifies the technical design, object-oriented analysis, smart contract formalisms, and evaluation metrics for <strong className="text-white">Hospi-Chain</strong>: an EVM-compatible distributed telemedicine and epidemiologic outbreak containment architecture.
                 </p>
               </div>
 
@@ -373,7 +373,7 @@ export const AcademicReportModal: React.FC<AcademicReportModalProps> = ({ onClos
 
         {/* Modal Footer */}
         <div className="px-6 py-3 border-t border-slate-800 bg-slate-950 flex items-center justify-between text-xs text-slate-400">
-          <span>Project Supervisor & Departmental Board of Examiners · UNN 2026</span>
+          <span>Hospi-Chain Open Architecture & Standardized Health Interface</span>
           <button
             onClick={onClose}
             className="px-4 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded font-medium transition-colors"
