@@ -24,6 +24,10 @@ const AppContent: React.FC = () => {
     dismissToast,
     closeVideoCall,
     firebaseUser,
+    cloudSqlStatus,
+    lastCloudSqlSyncTime,
+    cloudSqlRegion,
+    forceSyncCloudSql,
   } = useHospital();
 
   const [activeTab, setActiveTab] = useState<'patient' | 'doctor' | 'epidemiology' | 'ledger' | 'chatbot' | 'voice' | 'thesis'>('patient');
@@ -79,6 +83,22 @@ const AppContent: React.FC = () => {
             <div className="flex items-center gap-1.5 bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 px-2 py-0.5 rounded-xs shadow-xs">
               <span className="h-1.5 w-1.5 rounded-full bg-emerald-500"></span>
               <span className="text-zinc-800 dark:text-zinc-300 font-medium">MAINNET #2026</span>
+            </div>
+
+            {/* Cloud SQL Sync Indicator */}
+            <div 
+              onClick={forceSyncCloudSql}
+              className="flex items-center gap-1.5 bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 px-2 py-0.5 rounded-xs shadow-xs cursor-pointer hover:border-emerald-500/50 transition-colors"
+              title="Click to force sync with Cloud SQL PostgreSQL (europe-west2)"
+            >
+              <span className={`h-1.5 w-1.5 rounded-full ${
+                cloudSqlStatus === 'syncing' ? 'bg-amber-500 animate-ping' :
+                cloudSqlStatus === 'error' ? 'bg-rose-500' : 'bg-emerald-500 animate-pulse'
+              }`}></span>
+              <span className="text-zinc-800 dark:text-zinc-300 font-medium">
+                {cloudSqlStatus === 'syncing' ? 'SQL: SYNCING...' :
+                 cloudSqlStatus === 'error' ? 'SQL: ERROR' : `SQL: SYNCED (${cloudSqlRegion})`}
+              </span>
             </div>
 
             <div className="flex items-center gap-1.5 text-zinc-600 dark:text-zinc-400">

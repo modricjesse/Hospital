@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { formatTxHash, formatAddress } from '../utils/crypto';
 import { RegionalMapWidget } from './RegionalMapWidget';
+import { PathogenHeatmapD3 } from './PathogenHeatmapD3';
 
 export const EpidemiologyDashboard: React.FC = () => {
   const { 
@@ -185,6 +186,13 @@ export const EpidemiologyDashboard: React.FC = () => {
         jurisdictions={jurisdictions}
         selectedId={selectedJurisdiction}
         onSelect={setSelectedJurisdiction}
+      />
+
+      {/* D3.js Interactive Heatmap Component */}
+      <PathogenHeatmapD3
+        jurisdictions={jurisdictions}
+        selectedJurisdiction={selectedJurisdiction}
+        onSelectJurisdiction={setSelectedJurisdiction}
       />
 
       {/* Main Grid: Jurisdictions & Event Stream */}
