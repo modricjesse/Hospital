@@ -3,6 +3,7 @@ import { useHospital } from '../context/HospitalContext';
 import { useTheme } from '../context/ThemeContext';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
+import { GmailAssistantModal } from './GmailAssistantModal';
 import { 
   Shield, 
   ChevronDown,
@@ -16,7 +17,8 @@ import {
   Layers,
   Sparkles,
   Sun,
-  Moon
+  Moon,
+  Mail
 } from 'lucide-react';
 import { formatAddress } from '../utils/crypto';
 
@@ -41,6 +43,7 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab, openThe
 
   const [userDropdownOpen, setUserDropdownOpen] = useState(false);
   const [authLoading, setAuthLoading] = useState(false);
+  const [gmailModalOpen, setGmailModalOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -156,6 +159,18 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab, openThe
             ) : (
               <Moon className="h-3.5 w-3.5 text-indigo-600 transition-transform hover:-rotate-12" />
             )}
+          </Button>
+
+          {/* Gmail Integration Button */}
+          <Button
+            variant="outline"
+            size="compact"
+            onClick={() => setGmailModalOpen(true)}
+            className="h-7.5 px-2 flex items-center gap-1 rounded-xs border-zinc-300 dark:border-zinc-800 bg-zinc-100/80 dark:bg-zinc-900/80 text-zinc-700 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-200 dark:hover:bg-zinc-800 cursor-pointer text-xs"
+            title="Open Gmail Inbox & Dispatcher"
+          >
+            <Mail className="h-3.5 w-3.5 text-red-500" />
+            <span className="hidden md:inline font-mono">Gmail</span>
           </Button>
 
           {isMining && (
@@ -299,6 +314,8 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab, openThe
           Tech Spec
         </button>
       </div>
+
+      <GmailAssistantModal isOpen={gmailModalOpen} onClose={() => setGmailModalOpen(false)} />
     </header>
   );
 };

@@ -257,7 +257,11 @@ export const HospitalProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
   const signInWithGoogle = async () => {
     try {
-      await signInWithPopup(auth, googleProvider);
+      const result = await signInWithPopup(auth, googleProvider);
+      const credential = GoogleAuthProvider.credentialFromResult(result);
+      if (credential?.accessToken) {
+        setCachedAccessToken(credential.accessToken);
+      }
     } catch (err: any) {
       console.error('Firebase Google Sign-In Error:', err);
       throw err;

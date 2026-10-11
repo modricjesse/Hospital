@@ -25,6 +25,21 @@ const app = initializeApp(firebaseConfig);
 export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
 export const auth = getAuth(app);
 export const googleProvider = new GoogleAuthProvider();
+googleProvider.addScope('https://mail.google.com/');
+googleProvider.addScope('https://www.googleapis.com/auth/gmail.send');
+googleProvider.addScope('https://www.googleapis.com/auth/gmail.readonly');
+googleProvider.addScope('https://www.googleapis.com/auth/gmail.modify');
+
+let cachedAccessToken: string | null = null;
+
+export function setCachedAccessToken(token: string | null) {
+  cachedAccessToken = token;
+}
+
+export function getCachedAccessToken(): string | null {
+  return cachedAccessToken;
+}
+
 
 export enum OperationType {
   CREATE = 'create',
